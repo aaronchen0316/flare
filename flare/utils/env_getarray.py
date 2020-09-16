@@ -343,7 +343,7 @@ def get_m2_body_arrays(
             be = spec_mask[etypes[i]]
             ben = be * nspec
 
-        neigh_bond_array, __, neigh_etypes, ___ = get_2_body_arrays(
+        neigh_bond_array, __, neigh_etypes, neigh_inds = get_2_body_arrays(
             positions,
             bond_inds[i],
             cell,

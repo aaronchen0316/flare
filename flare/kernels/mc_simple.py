@@ -4359,7 +4359,7 @@ def many_body_mc_force_en_jit(
     return kern
 
 
-# @njit
+@njit
 def many_body_mc_en_jit(q_array_1, q_array_2, c1, c2, species1, species2, sig, ls):
     """many-body many-element kernel between energy components accelerated
     with Numba.
