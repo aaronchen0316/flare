@@ -97,7 +97,7 @@ def test_force(kernels, kernel_type):
 
     d1 = 1
     d2 = 2
-    tol = 1e-3
+    tol = 2e-3
     cell = 1e7 * np.eye(3)
     delta = 1e-4
     cutoffs = np.ones(3) * 1.2
@@ -118,19 +118,29 @@ def test_force(kernels, kernel_type):
 
     # check force kernel
     kern_finite_diff = 0
-    if "many" == kernels:
-        _, _, enm_kernel, _, _, _, _ = str_to_kernel_set("many", kernel_type)
+    if "many" in kernels:
+        _, _, enm_kernel, fekm, _, _, _ = str_to_kernel_set("many", kernel_type)
         mhyps = hyps[(nterm - 1) * 2 :]
         print(hyps)
         print(mhyps)
         cal = 0
-        for i in range(3):
-            for j in range(len(env1[0])):
+        nat = len(env1[0])
+        nat_2 = len(env2[0])
+        for i in range(nat):
+            for j in range(nat_2):
                 cal += enm_kernel(env1[1][i], env2[1][j], mhyps, cutoffs)
                 cal += enm_kernel(env1[2][i], env2[2][j], mhyps, cutoffs)
                 cal -= enm_kernel(env1[1][i], env2[2][j], mhyps, cutoffs)
                 cal -= enm_kernel(env1[2][i], env2[1][j], mhyps, cutoffs)
         kern_finite_diff += cal / (4 * delta ** 2)
+
+        #cal = 0
+        #for j in range(nat_2):
+        #    cal += fekm(env1[0][0], env2[2][j], d1, mhyps, cutoffs)
+        #    cal -= fekm(env1[0][0], env2[1][j], d1, mhyps, cutoffs)
+        #kern_finite_diff_fe = cal / (2 * delta)
+
+        print("manybody kern", kern_finite_diff) #, kern_finite_diff_fe)
     else:
         # TODO: Establish why 2+3+MB fails (numerical error?)
         return
@@ -145,6 +155,7 @@ def test_force(kernels, kernel_type):
         calc3 = en2_kernel(env1[1][0], env2[2][0], hyps[0 : ntwobody * 2], cutoffs)
         calc4 = en2_kernel(env1[2][0], env2[1][0], hyps[0 : ntwobody * 2], cutoffs)
         kern_finite_diff += 4 * (calc1 + calc2 - calc3 - calc4) / (4 * delta ** 2)
+        print("manybody+twobody kern", kern_finite_diff)
     else:
         ntwobody = 0
 
@@ -156,6 +167,7 @@ def test_force(kernels, kernel_type):
         calc3 = en3_kernel(env1[1][0], env2[2][0], hyps[ntwobody * 2 :], cutoffs)
         calc4 = en3_kernel(env1[2][0], env2[1][0], hyps[ntwobody * 2 :], cutoffs)
         kern_finite_diff += 9 * (calc1 + calc2 - calc3 - calc4) / (4 * delta ** 2)
+        print("manybody+twobody+threebody kern", kern_finite_diff)
 
     kern_analytical = kernel(env1[0][0], env2[0][0], d1, d2, *args)
 
