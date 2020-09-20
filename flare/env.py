@@ -153,6 +153,7 @@ class AtomicEnvironment:
         self.q_grads = None
         self.q_neigh_grads = None
         self.unique_species = None
+        self.bond_array_mb = None
         self.etypes_mb = None
 
         self.compute_env()
@@ -251,7 +252,11 @@ class AtomicEnvironment:
                 self.q_grads,
                 self.q_neigh_grads,
                 self.unique_species,
+                self.bond_array_mb,
                 self.etypes_mb,
+                self.neigh_array,
+                self.neigh_etypes,
+                self.q_neigh2_array,
             ) = get_m2_body_arrays(
                 self.positions,
                 self.atom,

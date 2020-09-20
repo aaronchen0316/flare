@@ -303,47 +303,49 @@ def get_m2_body_arrays(
         manybody_mask,
     )
 
+    # multihyps settings
     sepcut = False
-    if nspec > 1 and manybody_cutoff_list is not None:
-        bc = spec_mask[species[atom]]
-        bcn = bc * nspec
-        sepcut = True
+    bc = bcn = 0
+#    if nspec > 1 and manybody_cutoff_list is not None:
+#        bc = spec_mask[species[atom]]
+#        bcn = bc * nspec
+#        sepcut = True
+#
+#    multihyps = (
+#        sepcut
+#        and (spec_mask is not None)
+#        and (manybody_mask is not None)
+#        and (manybody_cutoff_list is not None)
+#    )
+#    if not multihyps:
+#       spec_mask = manybody_mask = manybody_cutoff_list = np.empty(1, dtype=np.int8)
+    multihyps = False
+    masks = (multihyps, spec_mask, manybody_mask, manybody_cutoff_list)
 
+    # initiate calculations
     species_list = np.array(list(set(species)), dtype=np.int8)
     n_bonds = len(bond_inds)
     n_specs = len(species_list)
     qs = np.zeros(n_specs, dtype=np.float64)
-    qs_neigh = np.zeros((n_bonds, n_specs), dtype=np.float64)
-    q_neigh_grads = np.zeros((n_bonds, 3), dtype=np.float64)
+    qs_ngh = np.zeros((n_bonds, n_specs), dtype=np.float64)
+    qs_ngh2 = []
+    q_ngh_grads = np.zeros((n_bonds, 3), dtype=np.float64)
+    all_ngh_bond_array = []
+    all_ngh_etypes = []
 
     # get coordination number of center atom for each species
-    for s in range(n_specs):
-        if (
-            sepcut
-            and (spec_mask is not None)
-            and (manybody_mask is not None)
-            and (manybody_cutoff_list is not None)
-        ):
-            bs = spec_mask[species_list[s]]
-            mbtype = manybody_mask[bcn + bs]
-            r_cut = manybody_cutoff_list[mbtype]
-
-        qs[s] = q_value_mc(
-            bond_array_mb[:, 0], r_cut, species_list[s], etypes, cutoff_func
-        )
+    qs = q2_array_mc(
+        bond_array_mb, etypes, species_list, r_cut, cutoff_func, masks, bcn
+    )
 
     # get coordination number of all neighbor atoms for each species
     for i in range(n_bonds):
-        if (
-            sepcut
-            and (spec_mask is not None)
-            and (manybody_mask is not None)
-            and (manybody_cutoff_list is not None)
-        ):
-            be = spec_mask[etypes[i]]
-            ben = be * nspec
+        be = ben = 0
+#        if multihyps:
+#            be = spec_mask[etypes[i]]
+#            ben = be * nspec
 
-        neigh_bond_array, __, neigh_etypes, neigh_inds = get_2_body_arrays(
+        ngh_bond_array, __, ngh_etypes, ngh_inds = get_2_body_arrays(
             positions,
             bond_inds[i],
             cell,
@@ -355,47 +357,98 @@ def get_m2_body_arrays(
             spec_mask,
             manybody_mask,
         )
-        for s in range(n_specs):
-            if (
-                sepcut
-                and (spec_mask is not None)
-                and (manybody_mask is not None)
-                and (manybody_cutoff_list is not None)
-            ):
-                bs = spec_mask[species_list[s]]
-                mbtype = manybody_mask[bs + ben]
-                r_cut = manybody_cutoff_list[mbtype]
 
-            qs_neigh[i, s] = q_value_mc(
-                neigh_bond_array[:, 0],
+        qs_ngh[i, :] = q2_array_mc(
+            ngh_bond_array,
+            ngh_etypes,
+            species_list,
+            r_cut,
+            cutoff_func,
+            masks,
+            ben,
+        )
+
+        # get coord num of the 2nd neighbors
+        n_ngh_bonds = len(ngh_inds)
+        q_ngh2 = np.zeros((n_ngh_bonds, n_specs), dtype=np.float64)
+        for j in range(n_ngh_bonds):
+            be = ben = None
+#            if multihyps:
+#                be = spec_mask[ngh_etypes[j]]
+#                ben = be * nspec
+
+            ngh2_bond_array, __, ngh2_etypes, _ = get_2_body_arrays(
+                positions,
+                ngh_inds[j],
+                cell,
                 r_cut,
-                species_list[s],
-                neigh_etypes,
-                cutoff_func,
+                manybody_cutoff_list,
+                species,
+                sweep,
+                nspec,
+                spec_mask,
+                manybody_mask,
             )
+
+            q_ngh2[j, :] = q2_array_mc(
+                ngh2_bond_array,
+                ngh2_etypes,
+                species_list,
+                r_cut,
+                cutoff_func,
+                masks,
+                ben,
+            )
+
+        qs_ngh2.append(q_ngh2)
+        all_ngh_bond_array.append(ngh_bond_array)
+        all_ngh_etypes.append(ngh_etypes)
 
     # get grad from each neighbor atom
     for i in range(n_bonds):
-        if (
-            sepcut
-            and (spec_mask is not None)
-            and (manybody_mask is not None)
-            and (manybody_cutoff_list is not None)
-        ):
-            be = spec_mask[etypes[i]]
-            mbtype = manybody_mask[bcn + be]
-            r_cut = manybody_cutoff_list[mbtype]
+#        if multihyps:
+#            be = spec_mask[etypes[i]]
+#            mbtype = manybody_mask[bcn + be]
+#            r_cut = manybody_cutoff_list[mbtype]
 
         ri = bond_array_mb[i, 0]
         for d in range(3):
             ci = bond_array_mb[i, d + 1]
 
-            ____, q_neigh_grads[i, d] = coordination_number(ri, ci, r_cut, cutoff_func)
+            ____, q_ngh_grads[i, d] = coordination_number(ri, ci, r_cut, cutoff_func)
 
     # get grads of the center atom
-    q_grads = q2_grads_mc(q_neigh_grads, species_list, etypes)
+    q_grads = q2_grads_mc(q_ngh_grads, species_list, etypes)
 
-    return qs, qs_neigh, q_grads, q_neigh_grads, species_list, etypes
+    return (
+        qs,
+        qs_ngh,
+        q_grads,
+        q_ngh_grads,
+        species_list,
+        bond_array_mb,
+        etypes,
+        all_ngh_bond_array,
+        all_ngh_etypes,
+        qs_ngh2,
+    )
+
+
+@njit
+def q2_array_mc(bond_array_mb, etypes, species_list, r_cut, cutoff_func, masks, bcn):
+    n_specs = len(species_list)
+    multihyps, spec_mask, manybody_mask, manybody_cutoff_list = masks
+    qs = np.zeros(n_specs, dtype=np.float64)
+    for s in range(n_specs):
+#        if multihyps:
+#            bs = spec_mask[species_list[s]]
+#            mbtype = manybody_mask[bcn + bs]
+#            r_cut = manybody_cutoff_list[mbtype]
+
+        qs[s] = q_value_mc(
+            bond_array_mb[:, 0], r_cut, species_list[s], etypes, cutoff_func
+        )
+    return qs
 
 
 @njit
