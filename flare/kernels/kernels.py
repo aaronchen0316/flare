@@ -1270,6 +1270,7 @@ def three_body_grad_perm(
 #                        many body helper functions
 # -----------------------------------------------------------------------------
 
+
 @njit
 def k2_sq_exp(q1m, q2m, q1n, q2n, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
@@ -1288,9 +1289,10 @@ def k2_sq_exp(q1m, q2m, q1n, q2n, sig, ls):
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(- (qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
     return ker
-    
+
+
 @njit
 def k2_sq_exp_dev(q1m, q2m, q1n, q2n, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
@@ -1309,12 +1311,66 @@ def k2_sq_exp_dev(q1m, q2m, q1n, q2n, sig, ls):
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(- (qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
 
     # derivative w.r.t. q1m
-    ret = - ker / ls2 * qmdiff
+    ret = -ker / ls2 * qmdiff
     return ret
 
+
+@njit
+def k2_sq_exp_double_dev_1(q1m, q2m, q1n, q2n, sig, ls):
+    """First Gradient of generic squared exponential kernel on two many body functions
+
+    Args:
+        q1 (float): the many body descriptor of the first local environment
+        q2 (float): the many body descriptor of the second local environment
+        sig (float): amplitude hyperparameter
+        ls2 (float): squared lenghtscale hyperparameter
+    Return:
+        float: the value of the derivative of the squared exponential kernel
+    """
+
+    qmdiff = q1m - q2m
+    qmdiffsq = qmdiff * qmdiff
+    qndiff = q1n - q2n
+    qndiffsq = qndiff * qndiff
+
+    ls2 = ls * ls
+
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
+
+    # derivative w.r.t. q1m
+    ret = ker / ls2 * (1 - qmdiffsq / ls2)
+    return ret
+
+
+@njit
+def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, sig, ls):
+    """First Gradient of generic squared exponential kernel on two many body functions
+
+    Args:
+        q1 (float): the many body descriptor of the first local environment
+        q2 (float): the many body descriptor of the second local environment
+        sig (float): amplitude hyperparameter
+        ls2 (float): squared lenghtscale hyperparameter
+    Return:
+        float: the value of the derivative of the squared exponential kernel
+    """
+
+    qmdiff = q1m - q2m
+    qmdiffsq = qmdiff * qmdiff
+    qndiff = q1n - q2n
+    qndiffsq = qndiff * qndiff
+
+    ls2 = ls * ls
+    ls4 = ls2 * ls2
+
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
+
+    # derivative w.r.t. q1m
+    ret = ker / ls4 * qmdiff * qndiff
+    return ret
 
 
 @njit
