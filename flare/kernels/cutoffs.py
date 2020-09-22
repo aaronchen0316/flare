@@ -86,7 +86,7 @@ def cubic_cutoff(r_cut: float, ri: float, ci: float):
 
 
 @njit
-def cosine_cutoff(r_cut: float, ri: float, ci: float, d: float = 1):
+def truncated_cosine_cutoff(r_cut: float, ri: float, ci: float, d: float = 1):
     """A cosine cutoff that returns 1 up to r_cut - d, and assigns a cosine
     envelope to values of r between r_cut - d and r_cut. Based on Eq. 24 of
     Albert P. Bartók and Gábor Csányi. "Gaussian approximation potentials: A
@@ -109,4 +109,11 @@ def cosine_cutoff(r_cut: float, ri: float, ci: float, d: float = 1):
         fi = 1
         fdi = 0
 
+    return fi, fdi
+
+@njit
+def cosine_cutoff(r_cut: float, ri: float, ci: float):
+    x = pi * ri / r_cut
+    fi = cos(x) + 1
+    fdi = - pi / r_cut * sin(x)
     return fi, fdi

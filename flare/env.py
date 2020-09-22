@@ -268,7 +268,7 @@ class AtomicEnvironment:
                 self.nspecie,
                 self.specie_mask,
                 self.manybody_mask,
-                cf.quadratic_cutoff,
+                cf.cosine_cutoff, #cf.quadratic_cutoff,
             )
 
     def as_str(self) -> str:

@@ -642,7 +642,7 @@ def two_plus_three_plus_many_body_mc(
     d2: int,
     hyps,
     cutoffs,
-    cutoff_func=cf.quadratic_cutoff,
+    cutoff_func=cf.cosine_cutoff, #cf.quadratic_cutoff,
 ):
     """2+3-body single-element kernel between two force components.
 
@@ -748,7 +748,7 @@ def two_plus_three_plus_many_body_mc_grad(
     d2: int,
     hyps,
     cutoffs,
-    cutoff_func=cf.quadratic_cutoff,
+    cutoff_func=cf.cosine_cutoff, #cf.quadratic_cutoff,
 ):
     """2+3+many-body single-element kernel between two force components.
 
@@ -852,7 +852,7 @@ def two_plus_three_plus_many_body_mc_force_en(
     d1: int,
     hyps,
     cutoffs,
-    cutoff_func=cf.quadratic_cutoff,
+    cutoff_func=cf.cosine_cutoff, #cf.quadratic_cutoff,
 ):
     """2+3+many-body single-element kernel between two force and energy
         components.
@@ -955,7 +955,7 @@ def two_plus_three_plus_many_body_mc_en(
     env2: AtomicEnvironment,
     hyps,
     cutoffs,
-    cutoff_func=cf.quadratic_cutoff,
+    cutoff_func=cf.cosine_cutoff, #cf.quadratic_cutoff,
 ):
     """2+3+many-body single-element energy kernel.
 
