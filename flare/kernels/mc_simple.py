@@ -19,6 +19,14 @@ from flare.kernels.kernels import (
     three_body_grad_helper_2,
     k_sq_exp_double_dev,
     k_sq_exp_dev,
+    k2_sq_exp,
+    k2_sq_exp_dev,
+    k2_sq_exp_double_dev_1,
+    k2_sq_exp_double_dev_2,
+    k2_sq_exp_grad_ls,
+    k2_sq_exp_dev_grad_ls,
+    k2_sq_exp_double_dev_1_grad_ls,
+    k2_sq_exp_double_dev_2_grad_ls,
     coordination_number,
     q_value,
     q_value_mc,
@@ -705,19 +713,30 @@ def two_plus_three_plus_many_body_mc(
         env2.q_array,
         env1.q_neigh_array,
         env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
         env2.q_neigh_grads,
+        env1.neigh_array,
+        env2.neigh_array,
+        env1.q_neigh2_array,
+        env2.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
         env2.etypes_mb,
+        env1.neigh_etypes,
+        env2.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
-        d2,
         sigm,
         lsm,
+        d1,
+        d2,
+        r_cut_m,
+        cutoff_func,
     )
+
 
     return two_term + three_term + many_term
 
@@ -800,18 +819,28 @@ def two_plus_three_plus_many_body_mc_grad(
         env2.q_array,
         env1.q_neigh_array,
         env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
         env2.q_neigh_grads,
+        env1.neigh_array,
+        env2.neigh_array,
+        env1.q_neigh2_array,
+        env2.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
         env2.etypes_mb,
+        env1.neigh_etypes,
+        env2.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
-        d2,
         sigm,
         lsm,
+        d1,
+        d2,
+        r_cut_m,
+        cutoff_func,
     )
 
     return kern2 + kern3 + kern_many, np.hstack([grad2, grad3, gradm])
@@ -897,16 +926,26 @@ def two_plus_three_plus_many_body_mc_force_en(
         env1.q_array,
         env2.q_array,
         env1.q_neigh_array,
+        env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
+        env1.neigh_array,
+        env1.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
+        env2.etypes_mb,
+        env1.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
         sigm,
         lsm,
+        d1,
+        r_cut_m,
+        cutoff_func,
     )
+
 
     return two_term + three_term + many_term
 
@@ -985,13 +1024,22 @@ def two_plus_three_plus_many_body_mc_en(
     many_term = many_body_mc_en_jit(
         env1.q_array,
         env2.q_array,
+        env1.q_neigh_array,
+        env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.ctype,
         env2.ctype,
+        env1.etypes_mb,
+        env2.etypes_mb,
         env1.unique_species,
         env2.unique_species,
         sigm,
         lsm,
+        r_cut_m,
+        cutoff_func,
     )
+
 
     return two_term + three_term + many_term
 
@@ -1722,114 +1770,117 @@ def two_body_efs_self(
 # -----------------------------------------------------------------------------
 #                       many body multicomponent kernel
 # -----------------------------------------------------------------------------
-
-
 def many_body_mc(
     env1: AtomicEnvironment,
     env2: AtomicEnvironment,
-    d1: int,
-    d2: int,
+    d1,
+    d2,
     hyps: "ndarray",
     cutoffs: "ndarray",
     cutoff_func: Callable = cf.quadratic_cutoff,
 ) -> float:
-    """many-body multi-element kernel between two force components.
 
-    Args:
-        env1 (AtomicEnvironment): First local environment.
-        env2 (AtomicEnvironment): Second local environment.
-        d1 (int): Force component of the first environment.
-        d2 (int): Force component of the second environment.
-        hyps (np.ndarray): Hyperparameters of the kernel function (sig, ls).
-        cutoffs (np.ndarray): Two-element array containing the 2- and 3-body
-            cutoffs.
-        cutoff_func (Callable): Cutoff function of the kernel.
-
-    Return:
-        float: Value of the 3-body kernel.
-    """
     return many_body_mc_jit(
         env1.q_array,
         env2.q_array,
         env1.q_neigh_array,
         env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
         env2.q_neigh_grads,
+        env1.neigh_array,
+        env2.neigh_array,
+        env1.q_neigh2_array,
+        env2.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
         env2.etypes_mb,
+        env1.neigh_etypes,
+        env2.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
-        d2,
         hyps[0],
         hyps[1],
+        d1,
+        d2,
+        cutoffs[2],
+        cutoff_func,
     )
 
 
 def many_body_mc_grad(
     env1: AtomicEnvironment,
     env2: AtomicEnvironment,
-    d1: int,
-    d2: int,
+    d1,
+    d2,
     hyps: "ndarray",
     cutoffs: "ndarray",
     cutoff_func: Callable = cf.quadratic_cutoff,
 ) -> float:
-    """gradient manybody-body multi-element kernel between two force
-    components.
-    """
+
     return many_body_mc_grad_jit(
         env1.q_array,
         env2.q_array,
         env1.q_neigh_array,
         env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
         env2.q_neigh_grads,
+        env1.neigh_array,
+        env2.neigh_array,
+        env1.q_neigh2_array,
+        env2.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
         env2.etypes_mb,
+        env1.neigh_etypes,
+        env2.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
-        d2,
         hyps[0],
         hyps[1],
+        d1,
+        d2,
+        cutoffs[2],
+        cutoff_func,
     )
 
 
 def many_body_mc_force_en(
-    env1, env2, d1, hyps, cutoffs, cutoff_func=cf.quadratic_cutoff
-):
-    """many-body single-element kernel between two local energies.
+    env1: AtomicEnvironment,
+    env2: AtomicEnvironment,
+    d1,
+    hyps: "ndarray",
+    cutoffs: "ndarray",
+    cutoff_func: Callable = cf.quadratic_cutoff,
+) -> float:
 
-    Args:
-        env1 (AtomicEnvironment): First local environment.
-        env2 (AtomicEnvironment): Second local environment.
-        hyps (np.ndarray): Hyperparameters of the kernel function (sig, ls).
-        cutoffs (np.ndarray): Two-element array containing the 2-, 3-, and
-            many-body cutoffs.
-        cutoff_func (Callable): Cutoff function of the kernel.
-
-    Return:
-        float: Value of the many-body force/energy kernel.
-    """
-    # divide by three to account for triple counting
     return many_body_mc_force_en_jit(
         env1.q_array,
         env2.q_array,
         env1.q_neigh_array,
+        env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.q_neigh_grads,
+        env1.neigh_array,
+        env1.q_neigh2_array,
         env1.ctype,
         env2.ctype,
         env1.etypes_mb,
+        env2.etypes_mb,
+        env1.neigh_etypes,
         env1.unique_species,
         env2.unique_species,
-        d1,
         hyps[0],
         hyps[1],
+        d1,
+        cutoffs[2],
+        cutoff_func,
     )
 
 
@@ -1840,29 +1891,26 @@ def many_body_mc_en(
     cutoffs: "ndarray",
     cutoff_func: Callable = cf.quadratic_cutoff,
 ) -> float:
-    """many-body multi-element kernel between two local energies.
 
-    Args:
-        env1 (AtomicEnvironment): First local environment.
-        env2 (AtomicEnvironment): Second local environment.
-        hyps (np.ndarray): Hyperparameters of the kernel function (sig, ls).
-        cutoffs (np.ndarray): One-element array containing the 2-body
-            cutoff.
-        cutoff_func (Callable): Cutoff function of the kernel.
-
-    Return:
-        float: Value of the 2-body force/energy kernel.
-    """
     return many_body_mc_en_jit(
         env1.q_array,
         env2.q_array,
+        env1.q_neigh_array,
+        env2.q_neigh_array,
+        env1.bond_array_mb,
+        env2.bond_array_mb,
         env1.ctype,
         env2.ctype,
+        env1.etypes_mb,
+        env2.etypes_mb,
         env1.unique_species,
         env2.unique_species,
         hyps[0],
         hyps[1],
+        cutoffs[2],
+        cutoff_func,
     )
+
 
 
 # -----------------------------------------------------------------------------
@@ -4018,273 +4066,423 @@ def two_body_ss_jit(
 # -----------------------------------------------------------------------------
 #                 many body multicomponent kernel (numba)
 # -----------------------------------------------------------------------------
-
-
-def many_body_mc_jit(
-    q_array_1,
-    q_array_2,
-    q_neigh_array_1,
-    q_neigh_array_2,
-    q_neigh_grads_1,
-    q_neigh_grads_2,
-    c1,
-    c2,
-    etypes1,
-    etypes2,
-    species1,
-    species2,
-    d1,
-    d2,
-    sig,
-    ls,
-):
-    """many-body multi-element kernel between two force components accelerated
-    with Numba.
-
-    Args:
-        bond_array_1 (np.ndarray): many-body bond array of the first local
-            environment.
-        bond_array_2 (np.ndarray): many-body bond array of the second local
-            environment.
-        neigh_dists_1 (np.ndarray): matrix padded with zero values of distances
-            of neighbours for the atoms in the first local environment.
-        neigh_dists_2 (np.ndarray): matrix padded with zero values of distances
-            of neighbours for the atoms in the second local environment.
-        num_neigh_1 (np.ndarray): number of neighbours of each atom in the
-            first local environment
-        num_neigh_2 (np.ndarray): number of neighbours of each atom in the
-            second local environment
-        c1 (int): atomic species of the central atom in env 1
-        c2 (int): atomic species of the central atom in env 2
-        etypes1 (np.ndarray): atomic species of atoms in env 1
-        etypes2 (np.ndarray): atomic species of atoms in env 2
-        etypes_neigh_1 (np.ndarray): atomic species of atoms in the
-            neighbourhoods of atoms in env 1
-        etypes_neigh_2 (np.ndarray): atomic species of atoms in the
-            neighbourhoods of atoms in env 2
-        species1 (np.ndarray): all the atomic species present in trajectory 1
-        species2 (np.ndarray): all the atomic species present in trajectory 2
-        d1 (int): Force component of the first environment.
-        d2 (int): Force component of the second environment.
-        sig (float): many-body signal variance hyperparameter.
-        ls (float): many-body length scale hyperparameter.
-        r_cut (float): many-body cutoff radius.
-        cutoff_func (Callable): Cutoff function.
-
-    Return:
-        float: Value of the many-body kernel.
-    """
-
-    kern = 0
-
-    useful_species = np.array(
-        list(set(species1).intersection(set(species2))), dtype=np.int8
-    )
-
-    # loop over all possible species
-    for s in useful_species:
-
-        # Calculate many-body descriptor values for central atoms 1 and 2
-        s1 = np.where(species1 == s)[0][0]
-        s2 = np.where(species2 == s)[0][0]
-        q1 = q_array_1[s1]
-        q2 = q_array_2[s2]
-
-        # compute kernel between central atoms only if central atoms are of
-        # the same species
-        if c1 == c2:
-            k12 = k_sq_exp_double_dev(q1, q2, sig, ls)
-        else:
-            k12 = 0
-
-        # initialize arrays of many body descriptors and gradients for the
-        # neighbour atoms in the two configurations
-        # Loop over neighbours i of 1st configuration
-        for i in range(q_neigh_array_1.shape[0]):
-            qis = q1i_grads = qi1_grads = ki2s = 0
-
-            if etypes1[i] == s:
-                # derivative of pairwise component of many body descriptor q1i
-                q1i_grads = q_neigh_grads_1[i, d1 - 1]
-
-            if c1 == s:
-                # derivative of pairwise component of many body descriptor qi1
-                qi1_grads = q_neigh_grads_1[i, d1 - 1]
-
-            # Calculate many-body descriptor value for i
-            qis = q_neigh_array_1[i, s1]
-
-            if c2 == etypes1[i]:
-                ki2s = k_sq_exp_double_dev(qis, q2, sig, ls)
-
-            # Loop over neighbours j of 2
-            for j in range(q_neigh_array_2.shape[0]):
-                qjs = qj2_grads = q2j_grads = k1js = 0
-
-                if etypes2[j] == s:
-                    q2j_grads = q_neigh_grads_2[j, d2 - 1]
-
-                if c2 == s:
-                    qj2_grads = q_neigh_grads_2[j, d2 - 1]
-
-                # Calculate many-body descriptor value for j
-                qjs = q_neigh_array_2[j, s2]
-
-                if c1 == etypes2[j]:
-                    k1js = k_sq_exp_double_dev(q1, qjs, sig, ls)
-
-                if etypes1[i] == etypes2[j]:
-                    kij = k_sq_exp_double_dev(qis, qjs, sig, ls)
-                else:
-                    kij = 0
-
-                kern += q1i_grads * q2j_grads * k12
-                kern += qi1_grads * q2j_grads * ki2s
-                kern += q1i_grads * qj2_grads * k1js
-                kern += qi1_grads * qj2_grads * kij
-    return kern
-
-
 @njit
 def many_body_mc_grad_jit(
     q_array_1,
     q_array_2,
     q_neigh_array_1,
     q_neigh_array_2,
+    bond_array_1,
+    bond_array_2,
     q_neigh_grads_1,
     q_neigh_grads_2,
+    neigh_bond_array_1,
+    neigh_bond_array_2,
+    q_neigh2_array_1,
+    q_neigh2_array_2,
     c1,
     c2,
     etypes1,
     etypes2,
+    neigh_etypes1,
+    neigh_etypes2,
     species1,
     species2,
-    d1,
-    d2,
     sig,
     ls,
+    d1,
+    d2,
+    r_cut,
+    cutoff_func,
 ):
-    """gradient of many-body multi-element kernel between two force components
-    w.r.t. the hyperparameters, accelerated with Numba.
-
-    Args:
-        bond_array_1 (np.ndarray): many-body bond array of the first local
-            environment.
-        bond_array_2 (np.ndarray): many-body bond array of the second local
-            environment.
-        neigh_dists_1 (np.ndarray): matrix padded with zero values of distances
-            of neighbours for the atoms in the first local environment.
-        neigh_dists_2 (np.ndarray): matrix padded with zero values of distances
-            of neighbours for the atoms in the second local environment.
-        num_neigh_1 (np.ndarray): number of neighbours of each atom in the
-            first local environment
-        num_neigh_2 (np.ndarray): number of neighbours of each atom in the
-            second local environment
-        c1 (int): atomic species of the central atom in env 1
-        c2 (int): atomic species of the central atom in env 2
-        etypes1 (np.ndarray): atomic species of atoms in env 1
-        etypes2 (np.ndarray): atomic species of atoms in env 2
-        etypes_neigh_1 (np.ndarray): atomic species of atoms in the
-            neighbourhoods of atoms in env 1
-        etypes_neigh_2 (np.ndarray): atomic species of atoms in the
-            neighbourhoods of atoms in env 2
-        species1 (np.ndarray): all the atomic species present in trajectory 1
-        species2 (np.ndarray): all the atomic species present in trajectory 2
-        d1 (int): Force component of the first environment.
-        d2 (int): Force component of the second environment.
-        sig (float): many-body signal variance hyperparameter.
-        ls (float): many-body length scale hyperparameter.
-        r_cut (float): many-body cutoff radius.
-        cutoff_func (Callable): Cutoff function.
-
-    Return:
-        array: Value of the many-body kernel and its gradient w.r.t. sig and ls
-    """
-
-    kern = 0.0
-    sig_derv = 0.0
-    ls_derv = 0.0
-
     useful_species = np.array(
         list(set(species1).intersection(set(species2))), dtype=np.int8
     )
+    kern = 0.0
+    ls_derv = 0.0
 
     for s in useful_species:
         s1 = np.where(species1 == s)[0][0]
         s2 = np.where(species2 == s)[0][0]
+
         q1 = q_array_1[s1]
         q2 = q_array_2[s2]
 
-        if c1 == c2:
-            k12 = k_sq_exp_double_dev(q1, q2, sig, ls)
-            q12diffsq = (q1 - q2) ** 2  # * (q1 - q2)
-            dk12 = mb_grad_helper_ls_(q12diffsq, sig, ls)
-        else:
-            k12 = 0
-            dk12 = 0
+        # this has been calculated in env_getarray.py
+        dq1_dr = 0.0
+        for m in range(q_neigh_array_1.shape[0]):
+            e1 = etypes1[m]
+            if e1 == s:
+                dq1_dr += q_neigh_grads_1[m, d1 - 1]
 
-        # Compute  ki2s, qi1_grads, and qis
-        for i in range(q_neigh_array_1.shape[0]):
-            qis = q1i_grads = qi1_grads = ki2s = dki2s = 0
-            if etypes1[i] == s:
-                q1i_grads = q_neigh_grads_1[i, d1 - 1]
+        dq2_dr = 0.0
+        for n in range(q_neigh_array_2.shape[0]):
+            e2 = etypes2[n]
+            if e2 == s:
+                dq2_dr += q_neigh_grads_2[n, d2 - 1]
 
-            if c1 == s:
-                qi1_grads = q_neigh_grads_1[i, d1 - 1]
+        for m in range(q_neigh_array_1.shape[0]):
+            qn1 = q_neigh_array_1[m, s1]
+            ri = bond_array_1[m, 0]
+            ci = bond_array_1[m, d1]
+            fi, dfi = cutoff_func(r_cut, ri, ci)
+            e1 = etypes1[m]
 
-            # Calculate many-body descriptor value for i
-            qis = q_neigh_array_1[i, s1]
+            for n in range(q_neigh_array_2.shape[0]):
+                qn2 = q_neigh_array_2[n, s2]
+                rj = bond_array_2[n, 0]
+                cj = bond_array_2[n, d2]
+                fj, dfj = cutoff_func(r_cut, rj, cj)
+                e2 = etypes2[n]
 
-            if c2 == etypes1[i]:
-                ki2s = k_sq_exp_double_dev(qis, q2, sig, ls)
-                qi2diffsq = (qis - q2) * (qis - q2)
-                dki2s = mb_grad_helper_ls_(qi2diffsq, sig, ls)
+                if c1 == c2 and e1 == e2:
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kern += kq * dfj * dfi  # 0-0
+                    ls_term = k2_sq_exp_grad_ls(q1, q2, qn1, qn2, sig, ls)
+                    ls_derv += ls_term * dfj * dfi
 
-            # Loop over neighbours j of 2
-            for j in range(q_neigh_array_2.shape[0]):
-                qjs = qj2_grads = q2j_grads = k1js = dk1js = 0
+                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    kern += dq1_dr * dk_dq1 * fi * dfj  # 1-0
+                    ls_term = k2_sq_exp_dev_grad_ls(q1, q2, qn1, qn2, sig, ls)
+                    ls_derv += ls_term * dq1_dr * fi * dfj
 
-                if etypes2[j] == s:
-                    q2j_grads = q_neigh_grads_2[j, d2 - 1]
+                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, sig, ls)
+                    kern += dq2_dr * dk_dq2 * dfi * fj  # 0-1
+                    ls_term = k2_sq_exp_dev_grad_ls(q2, q1, qn2, qn1, sig, ls)
+                    ls_derv += dq2_dr * ls_term * dfi * fj  # 0-1
 
+                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, sig, ls)  # 1-1
+                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+                    ls_term = k2_sq_exp_double_dev_1_grad_ls(
+                        q1, q2, qn1, qn2, sig, ls
+                    )  # 1-1
+                    ls_derv += ls_term * dq1_dr * dq2_dr * fi * fj
+
+                if c1 == e2 and c2 == e1:
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kern += kq * dfj * dfi
+                    ls_term = k2_sq_exp_grad_ls(q1, qn2, qn1, q2, sig, ls)
+                    ls_derv += ls_term * dfj * dfi
+
+                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    kern += dq1_dr * dk_dq1 * fi * dfj
+                    ls_term = k2_sq_exp_dev_grad_ls(q1, qn2, qn1, q2, sig, ls)
+                    ls_derv += dq1_dr * ls_term * fi * dfj
+
+                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, sig, ls)
+                    kern += dq2_dr * dk_dq2 * dfi * fj
+                    ls_term = k2_sq_exp_dev_grad_ls(q2, qn1, q1, qn2, sig, ls)
+                    ls_derv += dq2_dr * ls_term * dfi * fj
+
+                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, sig, ls)
+                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(q1, qn2, q2, qn1, sig, ls)
+                    ls_derv += ls_term * dq1_dr * dq2_dr * fi * fj
+
+                # 2nd neighbors
+                if c1 == s:
+                    dqn1_dr = q_neigh_grads_1[m, d1 - 1]
+                    neigh2_array_1 = q_neigh2_array_1[m]
+                    for i in range(len(neigh2_array_1)):
+                        q2n1 = neigh2_array_1[i, s1]
+                        en1 = neigh_etypes1[m][i]
+                        rni = neigh_bond_array_1[m][i, 0]
+                        fni, _ = cutoff_func(r_cut, rni, 0)
+
+                        if e1 == c2 and en1 == e2:
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * dfj  # 2-0
+                            ls_term = k2_sq_exp_dev_grad_ls(qn1, q2, q2n1, qn2, sig, ls)
+                            ls_derv += ls_term * dqn1_dr * fni * dfj  # 2-0
+
+                            dk_dqn1q2 = k2_sq_exp_double_dev_1(
+                                qn1, q2, q2n1, qn2, sig, ls
+                            )
+                            kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj  # 2-1
+                            ls_term = k2_sq_exp_double_dev_1_grad_ls(
+                                qn1, q2, q2n1, qn2, sig, ls
+                            )
+                            ls_derv += ls_term * dqn1_dr * dq2_dr * fni * fj  # 2-1
+
+                        if en1 == c2 and e1 == e2:
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * dfj
+                            ls_term = k2_sq_exp_dev_grad_ls(qn1, qn2, q2n1, q2, sig, ls)
+                            ls_derv += ls_term * dqn1_dr * fni * dfj
+
+                            dk_dqn1q2 = k2_sq_exp_double_dev_2(
+                                qn1, qn2, q2, q2n1, sig, ls
+                            )
+                            kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn1, qn2, q2, q2n1, sig, ls
+                            )
+                            ls_derv += ls_term * dqn1_dr * dq2_dr * fni * fj
+
+                # 2nd neighbors
                 if c2 == s:
-                    qj2_grads = q_neigh_grads_2[j, d2 - 1]
+                    dqn2_dr = q_neigh_grads_2[n, d2 - 1]
+                    neigh2_array_2 = q_neigh2_array_2[n]
+                    for j in range(len(neigh2_array_2)):
+                        q2n2 = neigh2_array_2[j, s2]
+                        en2 = neigh_etypes2[n][j]
+                        rnj = neigh_bond_array_2[n][j, 0]
+                        fnj, _ = cutoff_func(r_cut, rnj, 0)
 
-                # Calculate many-body descriptor value for j
-                qjs = q_neigh_array_2[j, s2]
+                        if e2 == c1 and en2 == e1:
+                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, sig, ls)
+                            kern += dk_dq * dqn2_dr * dfi * fnj  # 0-2
+                            ls_term = k2_sq_exp_dev_grad_ls(qn2, q1, q2n2, qn1, sig, ls)
+                            ls_derv += ls_term * dqn2_dr * dfi * fnj  # 0-2
 
-                if c1 == etypes2[j]:
-                    k1js = k_sq_exp_double_dev(q1, qjs, sig, ls)
-                    q1jdiffsq = (q1 - qjs) * (q1 - qjs)
-                    dk1js = mb_grad_helper_ls_(q1jdiffsq, sig, ls)
+                            dk_dq1qn2 = k2_sq_exp_double_dev_1(
+                                qn2, q1, q2n2, qn1, sig, ls
+                            )
+                            kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj  # 1-2
+                            ls_term = k2_sq_exp_double_dev_1_grad_ls(
+                                qn2, q1, q2n2, qn1, sig, ls
+                            )
+                            ls_derv += ls_term * dq1_dr * dqn2_dr * fi * fnj  # 1-2
 
-                if etypes1[i] == etypes2[j]:
-                    kij = k_sq_exp_double_dev(qis, qjs, sig, ls)
-                    qijdiffsq = (qis - qjs) * (qis - qjs)
-                    dkij = mb_grad_helper_ls_(qijdiffsq, sig, ls)
-                else:
-                    kij = 0
-                    dkij = 0
+                        if en2 == c1 and e2 == e1:
+                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, sig, ls)
+                            kern += dk_dq * dqn2_dr * dfi * fnj
+                            ls_term = k2_sq_exp_dev_grad_ls(qn2, qn1, q2n2, q1, sig, ls)
+                            ls_derv += ls_term * dqn2_dr * dfi * fnj
 
-                kern_term = q1i_grads * q2j_grads * k12
-                kern_term += qi1_grads * q2j_grads * ki2s
-                kern_term += q1i_grads * qj2_grads * k1js
-                kern_term += qi1_grads * qj2_grads * kij
+                            dk_dq1qn2 = k2_sq_exp_double_dev_2(
+                                qn2, qn1, q1, q2n2, sig, ls
+                            )
+                            kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn2, qn1, q1, q2n2, sig, ls
+                            )
+                            ls_derv += ls_term * dq1_dr * dqn2_dr * fi * fnj
 
-                sig_term = 2.0 / sig * kern_term
+                if c1 == s and c2 == s:
+                    for i in range(len(neigh2_array_1)):
+                        q2n1 = neigh2_array_1[i, s1]
+                        en1 = neigh_etypes1[m][i]
+                        rni = neigh_bond_array_1[m][i, 0]
+                        fni, _ = cutoff_func(r_cut, rni, 0)
 
-                ls_term = q1i_grads * q2j_grads * dk12
-                ls_term += qi1_grads * q2j_grads * dki2s
-                ls_term += q1i_grads * qj2_grads * dk1js
-                ls_term += qi1_grads * qj2_grads * dkij
+                        for j in range(len(neigh2_array_2)):
+                            q2n2 = neigh2_array_2[j, s2]
+                            en2 = neigh_etypes2[n][j]
+                            rnj = neigh_bond_array_2[n][j, 0]
+                            fnj, _ = cutoff_func(r_cut, rnj, 0)
 
-                kern += kern_term
-                sig_derv += sig_term
-                ls_derv += ls_term
+                            if e1 == e2 and en1 == en2:
+                                dk_dqn1qn2 = k2_sq_exp_double_dev_1(
+                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                )
+                                kern += (
+                                    dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
+                                ls_term = k2_sq_exp_double_dev_1_grad_ls(
+                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                )
+                                ls_derv += (
+                                    ls_term * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
 
-    grad = np.array([sig_derv, ls_derv])
+                            if e1 == en2 and en1 == e2:
+                                dk_dqn1qn2 = k2_sq_exp_double_dev_2(
+                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                )
+                                kern += (
+                                    dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
+                                ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                )
+                                ls_derv += (
+                                    ls_term * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
+    sig_derv = 2 / sig * kern
 
-    return kern, grad
+    return kern, np.array([sig_derv, ls_derv])
+
+
+@njit
+def many_body_mc_jit(
+    q_array_1,
+    q_array_2,
+    q_neigh_array_1,
+    q_neigh_array_2,
+    bond_array_1,
+    bond_array_2,
+    q_neigh_grads_1,
+    q_neigh_grads_2,
+    neigh_bond_array_1,
+    neigh_bond_array_2,
+    q_neigh2_array_1,
+    q_neigh2_array_2,
+    c1,
+    c2,
+    etypes1,
+    etypes2,
+    neigh_etypes1,
+    neigh_etypes2,
+    species1,
+    species2,
+    sig,
+    ls,
+    d1,
+    d2,
+    r_cut,
+    cutoff_func,
+):
+    useful_species = np.array(
+        list(set(species1).intersection(set(species2))), dtype=np.int8
+    )
+    kern = 0
+
+    for s in useful_species:
+        s1 = np.where(species1 == s)[0][0]
+        s2 = np.where(species2 == s)[0][0]
+
+        q1 = q_array_1[s1]
+        q2 = q_array_2[s2]
+
+        # this has been calculated in env_getarray.py
+        dq1_dr = 0.0
+        for m in range(q_neigh_array_1.shape[0]):
+            e1 = etypes1[m]
+            if e1 == s:
+                dq1_dr += q_neigh_grads_1[m, d1 - 1]
+
+        dq2_dr = 0.0
+        for n in range(q_neigh_array_2.shape[0]):
+            e2 = etypes2[n]
+            if e2 == s:
+                dq2_dr += q_neigh_grads_2[n, d2 - 1]
+
+        for m in range(q_neigh_array_1.shape[0]):
+            qn1 = q_neigh_array_1[m, s1]
+            ri = bond_array_1[m, 0]
+            ci = bond_array_1[m, d1]
+            fi, dfi = cutoff_func(r_cut, ri, ci)
+            e1 = etypes1[m]
+
+            for n in range(q_neigh_array_2.shape[0]):
+                qn2 = q_neigh_array_2[n, s2]
+                rj = bond_array_2[n, 0]
+                cj = bond_array_2[n, d2]
+                fj, dfj = cutoff_func(r_cut, rj, cj)
+                e2 = etypes2[n]
+
+                if c1 == c2 and e1 == e2:
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kern += kq * dfj * dfi  # 0-0
+
+                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    kern += dq1_dr * dk_dq1 * fi * dfj  # 1-0
+
+                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, sig, ls)
+                    kern += dq2_dr * dk_dq2 * dfi * fj  # 0-1
+
+                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, sig, ls)  # 1-1
+                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+
+                if c1 == e2 and c2 == e1:
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kern += kq * dfj * dfi
+
+                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    kern += dq1_dr * dk_dq1 * fi * dfj
+
+                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, sig, ls)
+                    kern += dq2_dr * dk_dq2 * dfi * fj
+
+                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, sig, ls)
+                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+
+                # 2nd neighbors
+                if c1 == s:
+                    dqn1_dr = q_neigh_grads_1[m, d1 - 1]
+                    neigh2_array_1 = q_neigh2_array_1[m]
+                    for i in range(len(neigh2_array_1)):
+                        q2n1 = neigh2_array_1[i, s1]
+                        en1 = neigh_etypes1[m][i]
+                        rni = neigh_bond_array_1[m][i, 0]
+                        fni, _ = cutoff_func(r_cut, rni, 0)
+
+                        if e1 == c2 and en1 == e2:
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * dfj  # 2-0
+
+                            dk_dqn1q2 = k2_sq_exp_double_dev_1(
+                                qn1, q2, q2n1, qn2, sig, ls
+                            )
+                            kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj  # 2-1
+
+                        if en1 == c2 and e1 == e2:
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * dfj
+
+                            dk_dqn1q2 = k2_sq_exp_double_dev_2(
+                                qn1, qn2, q2, q2n1, sig, ls
+                            )
+                            kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj
+
+                # 2nd neighbors
+                if c2 == s:
+                    dqn2_dr = q_neigh_grads_2[n, d2 - 1]
+                    neigh2_array_2 = q_neigh2_array_2[n]
+                    for j in range(len(neigh2_array_2)):
+                        q2n2 = neigh2_array_2[j, s2]
+                        en2 = neigh_etypes2[n][j]
+                        rnj = neigh_bond_array_2[n][j, 0]
+                        fnj, _ = cutoff_func(r_cut, rnj, 0)
+
+                        if e2 == c1 and en2 == e1:
+                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, sig, ls)
+                            kern += dk_dq * dqn2_dr * dfi * fnj  # 0-2
+
+                            dk_dq1qn2 = k2_sq_exp_double_dev_1(
+                                qn2, q1, q2n2, qn1, sig, ls
+                            )
+                            kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj  # 1-2
+
+                        if en2 == c1 and e2 == e1:
+                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, sig, ls)
+                            kern += dk_dq * dqn2_dr * dfi * fnj
+
+                            dk_dq1qn2 = k2_sq_exp_double_dev_2(
+                                qn2, qn1, q1, q2n2, sig, ls
+                            )
+                            kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj
+
+                if c1 == s and c2 == s:
+                    for i in range(len(neigh2_array_1)):
+                        q2n1 = neigh2_array_1[i, s1]
+                        en1 = neigh_etypes1[m][i]
+                        rni = neigh_bond_array_1[m][i, 0]
+                        fni, _ = cutoff_func(r_cut, rni, 0)
+
+                        for j in range(len(neigh2_array_2)):
+                            q2n2 = neigh2_array_2[j, s2]
+                            en2 = neigh_etypes2[n][j]
+                            rnj = neigh_bond_array_2[n][j, 0]
+                            fnj, _ = cutoff_func(r_cut, rnj, 0)
+
+                            if e1 == e2 and en1 == en2:
+                                dk_dqn1qn2 = k2_sq_exp_double_dev_1(
+                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                )
+                                kern += (
+                                    dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
+                            if e1 == en2 and en1 == e2:
+                                dk_dqn1qn2 = k2_sq_exp_double_dev_2(
+                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                )
+                                kern += (
+                                    dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
+                                )  # 2-2
+
+    return kern
 
 
 @njit
@@ -4292,108 +4490,144 @@ def many_body_mc_force_en_jit(
     q_array_1,
     q_array_2,
     q_neigh_array_1,
+    q_neigh_array_2,
+    bond_array_1,
+    bond_array_2,
     q_neigh_grads_1,
+    neigh_bond_array_1,
+    q_neigh2_array_1,
     c1,
     c2,
     etypes1,
+    etypes2,
+    neigh_etypes1,
     species1,
     species2,
-    d1,
     sig,
     ls,
+    d1,
+    r_cut,
+    cutoff_func,
 ):
-    """many-body many-element kernel between force and energy components accelerated
-    with Numba.
-
-    Args:
-        c1 (int): atomic species of the central atom in env 1
-        c2 (int): atomic species of the central atom in env 2
-        etypes1 (np.ndarray): atomic species of atoms in env 1
-        species1 (np.ndarray): all the atomic species present in trajectory 1
-        species2 (np.ndarray): all the atomic species present in trajectory 2
-        d1 (int): Force component of the first environment.
-        sig (float): many-body signal variance hyperparameter.
-        ls (float): many-body length scale hyperparameter.
-
-    Return:
-        float: Value of the many-body kernel.
-    """
-
-    kern = 0
-
     useful_species = np.array(
         list(set(species1).intersection(set(species2))), dtype=np.int8
     )
+    kern = 0
 
     for s in useful_species:
         s1 = np.where(species1 == s)[0][0]
         s2 = np.where(species2 == s)[0][0]
+
         q1 = q_array_1[s1]
         q2 = q_array_2[s2]
 
-        if c1 == c2:
-            k12 = k_sq_exp_dev(q1, q2, sig, ls)
-        else:
-            k12 = 0
+        # this has been calculated in env_getarray.py
+        dq1_dr = 0.0
+        for m in range(q_neigh_array_1.shape[0]):
+            e1 = etypes1[m]
+            if e1 == s:
+                dq1_dr += q_neigh_grads_1[m, d1 - 1]
 
-        # Loop over neighbours i of 1
-        for i in range(q_neigh_array_1.shape[0]):
-            qi1_grads = q1i_grads = 0
-            ki2s = 0
+        for n in range(q_neigh_array_2.shape[0]):
+            qn2 = q_neigh_array_2[n, s2]
+            rj = bond_array_2[n, 0]
+            fj, _ = cutoff_func(r_cut, rj, 0)
+            e2 = etypes2[n]
 
-            if etypes1[i] == s:
-                q1i_grads = q_neigh_grads_1[i, d1 - 1]
+            for m in range(q_neigh_array_1.shape[0]):
+                qn1 = q_neigh_array_1[m, s1]
+                ri = bond_array_1[m, 0]
+                ci = bond_array_1[m, d1]
+                fi, dfi = cutoff_func(r_cut, ri, ci)
+                e1 = etypes1[m]
 
-            if c1 == s:
-                qi1_grads = q_neigh_grads_1[i, d1 - 1]
+                if c1 == c2 and e1 == e2:
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kern += kq * fj * dfi
+                    dk_dq = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    kern += dq1_dr * dk_dq * fi * fj
 
-            if c2 == etypes1[i]:
-                # Calculate many-body descriptor value for i
-                qis = q_neigh_array_1[i, s1]
-                ki2s = k_sq_exp_dev(qis, q2, sig, ls)
+                if c1 == e2 and c2 == e1:
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kern += kq * fj * dfi
+                    dk_dq = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    kern += dq1_dr * dk_dq * fi * fj
 
-            kern += -(q1i_grads * k12 + qi1_grads * ki2s)
+                # 2nd neighbors
+                dqn1_dr = q_neigh_grads_1[m, d1 - 1]
+                neigh2_array = q_neigh2_array_1[m]
+                for i in range(len(neigh2_array)):
+                    q2n1 = neigh2_array[i, s1]
+                    en1 = neigh_etypes1[m][i]
+                    rni = neigh_bond_array_1[m][i, 0]
+                    fni, _ = cutoff_func(r_cut, rni, 0)
+
+                    if e1 == c2 and en1 == e2:
+                        if c1 == s:
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * fj
+                    if en1 == c2 and e1 == e2:
+                        if c1 == s:
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            kern += dk_dq * dqn1_dr * fni * fj
+
+    kern /= -2
 
     return kern
 
 
 @njit
-def many_body_mc_en_jit(q_array_1, q_array_2, c1, c2, species1, species2, sig, ls):
-    """many-body many-element kernel between energy components accelerated
-    with Numba.
-
-    Args:
-        bond_array_1 (np.ndarray): many-body bond array of the first local
-            environment.
-        bond_array_2 (np.ndarray): many-body bond array of the second local
-            environment.
-        c1 (int): atomic species of the central atom in env 1
-        c2 (int): atomic species of the central atom in env 2
-        etypes1 (np.ndarray): atomic species of atoms in env 1
-        etypes2 (np.ndarray): atomic species of atoms in env 2
-        species1 (np.ndarray): all the atomic species present in trajectory 1
-        species2 (np.ndarray): all the atomic species present in trajectory 2
-        sig (float): many-body signal variance hyperparameter.
-        ls (float): many-body length scale hyperparameter.
-        r_cut (float): many-body cutoff radius.
-        cutoff_func (Callable): Cutoff function.
-
-    Return:
-        float: Value of the many-body kernel.
-    """
+def many_body_mc_en_jit(
+    q_array_1,
+    q_array_2,
+    q_neigh_array_1,
+    q_neigh_array_2,
+    bond_array_1,
+    bond_array_2,
+    c1,
+    c2,
+    etypes1,
+    etypes2,
+    species1,
+    species2,
+    sig,
+    ls,
+    r_cut,
+    cutoff_func,
+):
     useful_species = np.array(
         list(set(species1).intersection(set(species2))), dtype=np.int8
     )
     kern = 0
 
-    if c1 == c2:
-        for s in useful_species:
-            q1 = q_array_1[np.where(species1 == s)[0][0]]
-            q2 = q_array_2[np.where(species2 == s)[0][0]]
-            q1q2diff = q1 - q2
-            kern += sig * sig * exp(-q1q2diff * q1q2diff / (2 * ls * ls))
-    return kern
+    for s in useful_species:  # To be improved: set different species for q1, qn1
+        s1 = np.where(species1 == s)[0][0]
+        s2 = np.where(species2 == s)[0][0]
 
+        q1 = q_array_1[s1]
+        q2 = q_array_2[s2]
+
+        for m in range(q_neigh_array_1.shape[0]):
+            qn1 = q_neigh_array_1[m, s1]
+            ri = bond_array_1[m, 0]
+            fi, _ = cutoff_func(r_cut, ri, 0)
+            e1 = etypes1[m]
+
+            for n in range(q_neigh_array_2.shape[0]):
+                qn2 = q_neigh_array_2[n, s2]
+                rj = bond_array_2[n, 0]
+                fj, _ = cutoff_func(r_cut, rj, 0)
+                e2 = etypes2[n]
+
+                if c1 == c2 and e1 == e2:
+                    kern += k2_sq_exp(q1, q2, qn1, qn2, sig, ls) * fi * fj
+
+                if c1 == e2 and c2 == e1:
+                    kern += k2_sq_exp(q1, qn2, qn1, q2, sig, ls) * fi * fj
+
+    kern /= 4
+
+    return kern
 
 _str_to_kernel = {
     "two_body_mc": two_body_mc,
