@@ -1372,6 +1372,7 @@ def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, sig, ls):
     ret = ker / ls4 * qmdiff * qndiff
     return ret
 
+
 @njit
 def k2_sq_exp_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions

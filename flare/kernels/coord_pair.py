@@ -80,6 +80,7 @@ def many_body_mc(
         cutoff_func,
     )
 
+
 def many_body_mc_grad(
     env1: AtomicEnvironment,
     env2: AtomicEnvironment,
@@ -269,7 +270,9 @@ def many_body_mc_grad_jit(
 
                     dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, sig, ls)  # 1-1
                     kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
-                    ls_term = k2_sq_exp_double_dev_1_grad_ls(q1, q2, qn1, qn2, sig, ls)  # 1-1
+                    ls_term = k2_sq_exp_double_dev_1_grad_ls(
+                        q1, q2, qn1, qn2, sig, ls
+                    )  # 1-1
                     ls_derv += ls_term * dq1_dr * dq2_dr * fi * fj
 
                 if c1 == e2 and c2 == e1:
@@ -416,8 +419,6 @@ def many_body_mc_grad_jit(
     sig_derv = 2 / sig * kern
 
     return kern, np.array([sig_derv, ls_derv])
-
-
 
 
 @njit
@@ -599,7 +600,6 @@ def many_body_mc_jit(
                                 )  # 2-2
 
     return kern
-
 
 
 @njit
