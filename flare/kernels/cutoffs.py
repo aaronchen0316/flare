@@ -115,5 +115,5 @@ def truncated_cosine_cutoff(r_cut: float, ri: float, ci: float, d: float = 1):
 def cosine_cutoff(r_cut: float, ri: float, ci: float):
     x = pi * ri / r_cut
     fi = cos(x) + 1
-    fdi = - pi / r_cut * sin(x)
-    return fi, fdi
+    fdi = pi / r_cut * sin(x) * ci
+    return fi, fdi 
