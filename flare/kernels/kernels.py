@@ -1272,7 +1272,7 @@ def three_body_grad_perm(
 
 
 @njit
-def k2_sq_exp(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1286,15 +1286,16 @@ def k2_sq_exp(q1m, q2m, q1n, q2n, sig, ls):
 
     qmdiff = q1m - q2m
     qndiff = q1n - q2n
+    rdiff = ri - rj
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff + rdiff * rdiff) / (2 * ls2))
     return ker
 
 
 @njit
-def k2_sq_exp_dev(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_dev(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1308,10 +1309,11 @@ def k2_sq_exp_dev(q1m, q2m, q1n, q2n, sig, ls):
 
     qmdiff = q1m - q2m
     qndiff = q1n - q2n
+    rdiff = ri - rj
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiff * qmdiff + qndiff * qndiff + rdiff * rdiff) / (2 * ls2))
 
     # derivative w.r.t. q1m
     ret = -ker / ls2 * qmdiff
@@ -1319,7 +1321,7 @@ def k2_sq_exp_dev(q1m, q2m, q1n, q2n, sig, ls):
 
 
 @njit
-def k2_sq_exp_double_dev_1(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_double_dev_1(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1335,10 +1337,12 @@ def k2_sq_exp_double_dev_1(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq + rdiffsq) / (2 * ls2))
 
     # derivative w.r.t. q1m
     ret = ker / ls2 * (1 - qmdiffsq / ls2)
@@ -1346,7 +1350,7 @@ def k2_sq_exp_double_dev_1(q1m, q2m, q1n, q2n, sig, ls):
 
 
 @njit
-def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1362,11 +1366,13 @@ def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
 
     ls2 = ls * ls
     ls4 = ls2 * ls2
 
-    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq + rdiffsq) / (2 * ls2))
 
     # derivative w.r.t. q1m
     ret = ker / ls4 * qmdiff * qndiff
@@ -1374,7 +1380,7 @@ def k2_sq_exp_double_dev_2(q1m, q2m, q1n, q2n, sig, ls):
 
 
 @njit
-def k2_sq_exp_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_grad_ls(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1390,17 +1396,19 @@ def k2_sq_exp_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
 
     ls2 = ls * ls
 
-    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
-    ker_derv = ker * (qmdiffsq + qndiffsq) / (ls2 * ls)
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq + rdiffsq) / (2 * ls2))
+    ker_derv = ker * (qmdiffsq + qndiffsq + rdiffsq) / (ls2 * ls)
 
     return ker_derv
 
 
 @njit
-def k2_sq_exp_dev_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_dev_grad_ls(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1416,18 +1424,20 @@ def k2_sq_exp_dev_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
 
     ls2 = ls * ls
     ls3 = ls2 * ls
 
-    ker = sig * sig * exp(-(qmdiffsq + qndiffsq) / (2 * ls2))
-    ker_derv = ker * qmdiff / ls3 * (2 - (qmdiffsq + qndiffsq) / ls2)
+    ker = sig * sig * exp(-(qmdiffsq + qndiffsq + rdiffsq) / (2 * ls2))
+    ker_derv = ker * qmdiff / ls3 * (2 - (qmdiffsq + qndiffsq + rdiffsq) / ls2)
 
     return ker_derv
 
 
 @njit
-def k2_sq_exp_double_dev_1_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_double_dev_1_grad_ls(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1443,7 +1453,9 @@ def k2_sq_exp_double_dev_1_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
-    qsq = qmdiffsq + qndiffsq
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
+    qsq = qmdiffsq + qndiffsq + rdiffsq
 
     ls2 = ls * ls
     ls3 = ls2 * ls
@@ -1456,7 +1468,7 @@ def k2_sq_exp_double_dev_1_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
 
 
 @njit
-def k2_sq_exp_double_dev_2_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
+def k2_sq_exp_double_dev_2_grad_ls(q1m, q2m, q1n, q2n, ri, rj, sig, ls):
     """First Gradient of generic squared exponential kernel on two many body functions
 
     Args:
@@ -1472,7 +1484,9 @@ def k2_sq_exp_double_dev_2_grad_ls(q1m, q2m, q1n, q2n, sig, ls):
     qmdiffsq = qmdiff * qmdiff
     qndiff = q1n - q2n
     qndiffsq = qndiff * qndiff
-    qsq = qmdiffsq + qndiffsq
+    rdiff = ri - rj
+    rdiffsq = rdiff * rdiff
+    qsq = qmdiffsq + qndiffsq + rdiffsq
 
     ls2 = ls * ls
     ls4 = ls2 * ls2
@@ -1548,6 +1562,8 @@ def coordination_number(rij, cij, r_cut, cutoff_func):
     """
 
     fij, fdij = cutoff_func(r_cut, rij, cij)
+    fij /= 10
+    fdij /= 10
 
     return fij, fdij
 
