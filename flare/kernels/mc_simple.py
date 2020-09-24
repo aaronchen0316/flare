@@ -4136,48 +4136,100 @@ def many_body_mc_grad_jit(
                 e2 = etypes2[n]
 
                 if c1 == c2 and e1 == e2:
-                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += kq * dfj * dfi  # 0-0
-                    ls_term = k2_sq_exp_grad_ls(q1, q2, qn1, qn2, sig, ls)
+                    ls_term = k2_sq_exp_grad_ls(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     ls_derv += ls_term * dfj * dfi
 
-                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq1 * fi * dfj  # 1-0
-                    ls_term = k2_sq_exp_dev_grad_ls(q1, q2, qn1, qn2, sig, ls)
+                    ls_term = k2_sq_exp_dev_grad_ls(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     ls_derv += ls_term * dq1_dr * fi * dfj
 
-                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, sig, ls)
+                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, ri, rj, sig, ls)
                     kern += dq2_dr * dk_dq2 * dfi * fj  # 0-1
-                    ls_term = k2_sq_exp_dev_grad_ls(q2, q1, qn2, qn1, sig, ls)
+                    ls_term = k2_sq_exp_dev_grad_ls(q2, q1, qn2, qn1, ri, rj, sig, ls)
                     ls_derv += dq2_dr * ls_term * dfi * fj  # 0-1
 
-                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, sig, ls)  # 1-1
+                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, ri, rj, sig, ls)  # 1-1
                     kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
                     ls_term = k2_sq_exp_double_dev_1_grad_ls(
-                        q1, q2, qn1, qn2, sig, ls
+                        q1, q2, ri, rj, qn1, qn2, sig, ls
                     )  # 1-1
                     ls_derv += ls_term * dq1_dr * dq2_dr * fi * fj
 
+                    dk_dr1 = k2_sq_exp_dev(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dr1 * ci * fi * dfj # 3-0
+                    ls_term = k2_sq_exp_dev_grad_ls(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    ls_derv -= ls_term * ci * fi * dfj # 3-0
+
+                    dk_dr2 = k2_sq_exp_dev(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dr2 * cj * dfi * fj # 0-3
+                    ls_term = k2_sq_exp_dev_grad_ls(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    ls_derv -= ls_term * cj * dfi * fj # 0-3
+
+                    dk_dr1q2 = k2_sq_exp_double_dev_2(ri, rj, q2, q1, qn1, qn2, sig, ls)
+                    kern -= dk_dr1q2 * ci * dq2_dr * fi * fj # 3-1
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(ri, rj, q2, q1, qn1, qn2, sig, ls)
+                    ls_derv -= ls_term * ci * dq2_dr * fi * fj
+
+                    dk_dq1r2 = k2_sq_exp_double_dev_2(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dq1r2 * cj * dq1_dr * fi * fj # 1-3
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    ls_derv -= ls_term * cj * dq1_dr * fi * fj # 1-3
+
+                    dk_dr1r2 = k2_sq_exp_double_dev_1(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    kern += dk_dr1r2 * ci * cj * fi * fj # 3-3
+                    ls_term = k2_sq_exp_double_dev_1_grad_ls(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    ls_derv += ls_term * ci * cj * fi * fj # 3-3
+
+
                 if c1 == e2 and c2 == e1:
-                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += kq * dfj * dfi
-                    ls_term = k2_sq_exp_grad_ls(q1, qn2, qn1, q2, sig, ls)
+                    ls_term = k2_sq_exp_grad_ls(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     ls_derv += ls_term * dfj * dfi
 
-                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq1 * fi * dfj
-                    ls_term = k2_sq_exp_dev_grad_ls(q1, qn2, qn1, q2, sig, ls)
+                    ls_term = k2_sq_exp_dev_grad_ls(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     ls_derv += dq1_dr * ls_term * fi * dfj
 
-                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, sig, ls)
+                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, ri, rj, sig, ls)
                     kern += dq2_dr * dk_dq2 * dfi * fj
-                    ls_term = k2_sq_exp_dev_grad_ls(q2, qn1, q1, qn2, sig, ls)
+                    ls_term = k2_sq_exp_dev_grad_ls(q2, qn1, q1, qn2, ri, rj, sig, ls)
                     ls_derv += dq2_dr * ls_term * dfi * fj
 
-                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, sig, ls)
+                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, ri, rj, sig, ls)
                     kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
-                    ls_term = k2_sq_exp_double_dev_2_grad_ls(q1, qn2, q2, qn1, sig, ls)
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(q1, qn2, q2, qn1, ri, rj, sig, ls)
                     ls_derv += ls_term * dq1_dr * dq2_dr * fi * fj
+
+                    dk_dr1 = k2_sq_exp_dev(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dr1 * ci * fi * dfj # 3-0
+                    ls_term = k2_sq_exp_dev_grad_ls(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    ls_derv -= ls_term * ci * fi * dfj # 3-0
+
+                    dk_dr2 = k2_sq_exp_dev(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dr2 * cj * dfi * fj # 0-3
+                    ls_term = k2_sq_exp_dev_grad_ls(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    ls_derv -= ls_term * cj * dfi * fj # 0-3
+
+                    dk_dr1q2 = k2_sq_exp_double_dev_2(ri, rj, q2, qn1, q1, qn2, sig, ls)
+                    kern -= dk_dr1q2 * ci * dq2_dr * fi * fj # 3-1
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(ri, rj, q2, qn1, q1, qn2, sig, ls)
+                    ls_derv -= ls_term * ci * dq2_dr * fi * fj # 3-1
+
+                    dk_dq1r2 = k2_sq_exp_double_dev_2(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dq1r2 * cj * dq1_dr * fi * fj # 1-3
+                    ls_term = k2_sq_exp_double_dev_2_grad_ls(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    ls_derv -= ls_term * cj * dq1_dr * fi * fj # 1-3
+
+                    dk_dr1r2 = k2_sq_exp_double_dev_1(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    kern += dk_dr1r2 * ci * cj * fi * fj # 3-3
+                    ls_term = k2_sq_exp_double_dev_1_grad_ls(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    ls_derv += ls_term * ci * cj * fi * fj # 3-3
+
 
                 # 2nd neighbors
                 if c1 == s:
@@ -4190,34 +4242,53 @@ def many_body_mc_grad_jit(
                         fni, _ = cutoff_func(r_cut, rni, 0)
 
                         if e1 == c2 and en1 == e2:
-                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * dfj  # 2-0
-                            ls_term = k2_sq_exp_dev_grad_ls(qn1, q2, q2n1, qn2, sig, ls)
+                            ls_term = k2_sq_exp_dev_grad_ls(qn1, q2, q2n1, qn2, rni, rj, sig, ls)
                             ls_derv += ls_term * dqn1_dr * fni * dfj  # 2-0
 
                             dk_dqn1q2 = k2_sq_exp_double_dev_1(
-                                qn1, q2, q2n1, qn2, sig, ls
+                                qn1, q2, q2n1, qn2, rni, rj, sig, ls
                             )
                             kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj  # 2-1
                             ls_term = k2_sq_exp_double_dev_1_grad_ls(
-                                qn1, q2, q2n1, qn2, sig, ls
+                                qn1, q2, q2n1, qn2, rni, rj, sig, ls
                             )
                             ls_derv += ls_term * dqn1_dr * dq2_dr * fni * fj  # 2-1
 
+                            dk_dqn1r2 = k2_sq_exp_double_dev_2(
+                                qn1, q2, rj, rni, q2n1, qn2, sig, ls
+                            )
+                            kern -= dk_dqn1r2 * dqn1_dr * cj * fni * fj  # 2-3
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn1, q2, rj, rni, q2n1, qn2, sig, ls
+                            )
+                            ls_derv -= ls_term * dqn1_dr * cj * fni * fj  # 2-3
+
                         if en1 == c2 and e1 == e2:
-                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * dfj
-                            ls_term = k2_sq_exp_dev_grad_ls(qn1, qn2, q2n1, q2, sig, ls)
+                            ls_term = k2_sq_exp_dev_grad_ls(qn1, qn2, q2n1, q2, rni, rj, sig, ls)
                             ls_derv += ls_term * dqn1_dr * fni * dfj
 
                             dk_dqn1q2 = k2_sq_exp_double_dev_2(
-                                qn1, qn2, q2, q2n1, sig, ls
+                                qn1, qn2, q2, q2n1, rni, rj, sig, ls
                             )
                             kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj
                             ls_term = k2_sq_exp_double_dev_2_grad_ls(
-                                qn1, qn2, q2, q2n1, sig, ls
+                                qn1, qn2, q2, q2n1, rni, rj, sig, ls
                             )
                             ls_derv += ls_term * dqn1_dr * dq2_dr * fni * fj
+
+                            dk_dqn1r2 = k2_sq_exp_double_dev_2(
+                                qn1, qn2, rj, rni, q2n1, q2, sig, ls
+                            )
+                            kern -= dk_dqn1r2 * dqn1_dr * cj * fni * fj  # 2-3
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn1, qn2, rj, rni, q2n1, q2, sig, ls
+                            )
+                            ls_derv -= ls_term * dqn1_dr * cj * fni * fj  # 2-3
+
 
                 # 2nd neighbors
                 if c2 == s:
@@ -4230,34 +4301,54 @@ def many_body_mc_grad_jit(
                         fnj, _ = cutoff_func(r_cut, rnj, 0)
 
                         if e2 == c1 and en2 == e1:
-                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, ri, rnj, sig, ls)
                             kern += dk_dq * dqn2_dr * dfi * fnj  # 0-2
-                            ls_term = k2_sq_exp_dev_grad_ls(qn2, q1, q2n2, qn1, sig, ls)
+                            ls_term = k2_sq_exp_dev_grad_ls(qn2, q1, q2n2, qn1, ri, rnj, sig, ls)
                             ls_derv += ls_term * dqn2_dr * dfi * fnj  # 0-2
 
                             dk_dq1qn2 = k2_sq_exp_double_dev_1(
-                                qn2, q1, q2n2, qn1, sig, ls
+                                qn2, q1, q2n2, qn1, ri, rnj, sig, ls
                             )
                             kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj  # 1-2
                             ls_term = k2_sq_exp_double_dev_1_grad_ls(
-                                qn2, q1, q2n2, qn1, sig, ls
+                                qn2, q1, q2n2, qn1, ri, rnj, sig, ls
                             )
                             ls_derv += ls_term * dq1_dr * dqn2_dr * fi * fnj  # 1-2
 
+                            dk_dqn2r1 = k2_sq_exp_double_dev_2(
+                                qn2, q1, ri, rnj, q2n2, qn1, sig, ls
+                            )
+                            kern -= dk_dqn2r1 * dqn2_dr * ci * fni * fj  # 3-2
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn2, q1, ri, rnj, q2n2, qn1, sig, ls
+                            )
+                            ls_derv -= ls_term * dqn2_dr * ci * fni * fj  # 3-2
+
+
                         if en2 == c1 and e2 == e1:
-                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, ri, rnj, sig, ls)
                             kern += dk_dq * dqn2_dr * dfi * fnj
-                            ls_term = k2_sq_exp_dev_grad_ls(qn2, qn1, q2n2, q1, sig, ls)
+                            ls_term = k2_sq_exp_dev_grad_ls(qn2, qn1, q2n2, q1, ri, rnj, sig, ls)
                             ls_derv += ls_term * dqn2_dr * dfi * fnj
 
                             dk_dq1qn2 = k2_sq_exp_double_dev_2(
-                                qn2, qn1, q1, q2n2, sig, ls
+                                qn2, qn1, q1, q2n2, ri, rnj, sig, ls
                             )
                             kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj
                             ls_term = k2_sq_exp_double_dev_2_grad_ls(
-                                qn2, qn1, q1, q2n2, sig, ls
+                                qn2, qn1, q1, q2n2, ri, rnj, sig, ls
                             )
                             ls_derv += ls_term * dq1_dr * dqn2_dr * fi * fnj
+
+                            dk_dqn2r1 = k2_sq_exp_double_dev_2(
+                                qn2, qn1, ri, rnj, q2n2, q1, sig, ls
+                            )
+                            kern -= dk_dqn2r1 * dqn2_dr * ci * fni * fj  # 3-2
+                            ls_term = k2_sq_exp_double_dev_2_grad_ls(
+                                qn2, qn1, ri, rnj, q2n2, q1, sig, ls
+                            )
+                            ls_derv -= ls_term * dqn2_dr * ci * fni * fj  # 3-2
+
 
                 if c1 == s and c2 == s:
                     for i in range(len(neigh2_array_1)):
@@ -4274,13 +4365,13 @@ def many_body_mc_grad_jit(
 
                             if e1 == e2 and en1 == en2:
                                 dk_dqn1qn2 = k2_sq_exp_double_dev_1(
-                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                    qn1, qn2, q2n1, q2n2, rni, rnj, sig, ls
                                 )
                                 kern += (
                                     dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
                                 )  # 2-2
                                 ls_term = k2_sq_exp_double_dev_1_grad_ls(
-                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                    qn1, qn2, q2n1, q2n2, rni, rnj, sig, ls
                                 )
                                 ls_derv += (
                                     ls_term * dqn1_dr * dqn2_dr * fni * fnj
@@ -4288,13 +4379,13 @@ def many_body_mc_grad_jit(
 
                             if e1 == en2 and en1 == e2:
                                 dk_dqn1qn2 = k2_sq_exp_double_dev_2(
-                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                    qn1, q2n2, qn2, q2n1, rni, rnj, sig, ls
                                 )
                                 kern += (
                                     dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
                                 )  # 2-2
                                 ls_term = k2_sq_exp_double_dev_2_grad_ls(
-                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                    qn1, q2n2, qn2, q2n1, rni, rnj, sig, ls
                                 )
                                 ls_derv += (
                                     ls_term * dqn1_dr * dqn2_dr * fni * fnj
@@ -4373,30 +4464,61 @@ def many_body_mc_jit(
                 e2 = etypes2[n]
 
                 if c1 == c2 and e1 == e2:
-                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += kq * dfj * dfi  # 0-0
 
-                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    dk_dq1 = k2_sq_exp_dev(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq1 * fi * dfj  # 1-0
 
-                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, sig, ls)
+                    dk_dq2 = k2_sq_exp_dev(q2, q1, qn2, qn1, ri, rj, sig, ls)
                     kern += dq2_dr * dk_dq2 * dfi * fj  # 0-1
 
-                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, sig, ls)  # 1-1
-                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+                    dk_dq1q2 = k2_sq_exp_double_dev_1(q1, q2, qn1, qn2, ri, rj, sig, ls)
+                    kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj # 1-1
+
+                    dk_dr1 = k2_sq_exp_dev(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dr1 * ci * fi * dfj # 3-0
+
+                    dk_dr2 = k2_sq_exp_dev(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dr2 * cj * dfi * fj # 0-3
+
+                    dk_dr1q2 = k2_sq_exp_double_dev_2(ri, rj, q2, q1, qn1, qn2, sig, ls)
+                    kern -= dk_dr1q2 * ci * dq2_dr * fi * fj # 3-1
+
+                    dk_dq1r2 = k2_sq_exp_double_dev_2(rj, ri, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dq1r2 * cj * dq1_dr * fi * fj # 1-3
+
+                    dk_dr1r2 = k2_sq_exp_double_dev_1(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    kern += dk_dr1r2 * ci * cj * fi * fj # 3-3
 
                 if c1 == e2 and c2 == e1:
-                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += kq * dfj * dfi
 
-                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    dk_dq1 = k2_sq_exp_dev(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq1 * fi * dfj
 
-                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, sig, ls)
+                    dk_dq2 = k2_sq_exp_dev(q2, qn1, q1, qn2, ri, rj, sig, ls)
                     kern += dq2_dr * dk_dq2 * dfi * fj
 
-                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, sig, ls)
+                    dk_dq1q2 = k2_sq_exp_double_dev_2(q1, qn2, q2, qn1, ri, rj, sig, ls)
                     kern += dk_dq1q2 * dq1_dr * dq2_dr * fi * fj
+
+                    dk_dr1 = k2_sq_exp_dev(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dr1 * ci * fi * dfj # 3-0
+
+                    dk_dr2 = k2_sq_exp_dev(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dr2 * cj * dfi * fj # 0-3
+
+                    dk_dr1q2 = k2_sq_exp_double_dev_2(ri, rj, q2, qn1, q1, qn2, sig, ls)
+                    kern -= dk_dr1q2 * ci * dq2_dr * fi * fj # 3-1
+
+                    dk_dq1r2 = k2_sq_exp_double_dev_2(rj, ri, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dq1r2 * cj * dq1_dr * fi * fj # 1-3
+
+                    dk_dr1r2 = k2_sq_exp_double_dev_1(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    kern += dk_dr1r2 * ci * cj * fi * fj # 3-3
+
 
                 # 2nd neighbors
                 if c1 == s:
@@ -4409,22 +4531,32 @@ def many_body_mc_jit(
                         fni, _ = cutoff_func(r_cut, rni, 0)
 
                         if e1 == c2 and en1 == e2:
-                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * dfj  # 2-0
 
                             dk_dqn1q2 = k2_sq_exp_double_dev_1(
-                                qn1, q2, q2n1, qn2, sig, ls
+                                qn1, q2, q2n1, qn2, rni, rj, sig, ls
                             )
                             kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj  # 2-1
 
+                            dk_dqn1r2 = k2_sq_exp_double_dev_2(
+                                qn1, q2, rj, rni, q2n1, qn2, sig, ls
+                            )
+                            kern -= dk_dqn1r2 * dqn1_dr * cj * fni * fj  # 2-3
+
                         if en1 == c2 and e1 == e2:
-                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * dfj
 
                             dk_dqn1q2 = k2_sq_exp_double_dev_2(
-                                qn1, qn2, q2, q2n1, sig, ls
+                                qn1, qn2, q2, q2n1, rni, rj, sig, ls
                             )
                             kern += dk_dqn1q2 * dqn1_dr * dq2_dr * fni * fj
+
+                            dk_dqn1r2 = k2_sq_exp_double_dev_2(
+                                qn1, qn2, rj, rni, q2n1, q2, sig, ls
+                            )
+                            kern -= dk_dqn1r2 * dqn1_dr * cj * fni * fj  # 2-3
 
                 # 2nd neighbors
                 if c2 == s:
@@ -4437,22 +4569,33 @@ def many_body_mc_jit(
                         fnj, _ = cutoff_func(r_cut, rnj, 0)
 
                         if e2 == c1 and en2 == e1:
-                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn2, q1, q2n2, qn1, ri, rnj, sig, ls)
                             kern += dk_dq * dqn2_dr * dfi * fnj  # 0-2
 
                             dk_dq1qn2 = k2_sq_exp_double_dev_1(
-                                qn2, q1, q2n2, qn1, sig, ls
+                                qn2, q1, q2n2, qn1, ri, rnj, sig, ls
                             )
                             kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj  # 1-2
 
+                            dk_dqn2r1 = k2_sq_exp_double_dev_2(
+                                qn2, q1, ri, rnj, q2n2, qn1, sig, ls
+                            )
+                            kern -= dk_dqn2r1 * dqn2_dr * ci * fni * fj  # 3-2
+
+
                         if en2 == c1 and e2 == e1:
-                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn2, qn1, q2n2, q1, ri, rnj, sig, ls)
                             kern += dk_dq * dqn2_dr * dfi * fnj
 
                             dk_dq1qn2 = k2_sq_exp_double_dev_2(
-                                qn2, qn1, q1, q2n2, sig, ls
+                                qn2, qn1, q1, q2n2, ri, rnj, sig, ls
                             )
                             kern += dk_dq1qn2 * dq1_dr * dqn2_dr * fi * fnj
+
+                            dk_dqn2r1 = k2_sq_exp_double_dev_2(
+                                qn2, qn1, ri, rnj, q2n2, q1, sig, ls
+                            )
+                            kern -= dk_dqn2r1 * dqn2_dr * ci * fni * fj  # 3-2
 
                 if c1 == s and c2 == s:
                     for i in range(len(neigh2_array_1)):
@@ -4469,14 +4612,14 @@ def many_body_mc_jit(
 
                             if e1 == e2 and en1 == en2:
                                 dk_dqn1qn2 = k2_sq_exp_double_dev_1(
-                                    qn1, qn2, q2n1, q2n2, sig, ls
+                                    qn1, qn2, q2n1, q2n2, rni, rnj, sig, ls
                                 )
                                 kern += (
                                     dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
                                 )  # 2-2
                             if e1 == en2 and en1 == e2:
                                 dk_dqn1qn2 = k2_sq_exp_double_dev_2(
-                                    qn1, q2n2, qn2, q2n1, sig, ls
+                                    qn1, q2n2, qn2, q2n1, rni, rnj, sig, ls
                                 )
                                 kern += (
                                     dk_dqn1qn2 * dqn1_dr * dqn2_dr * fni * fnj
@@ -4542,16 +4685,20 @@ def many_body_mc_force_en_jit(
                 e1 = etypes1[m]
 
                 if c1 == c2 and e1 == e2:
-                    kq = k2_sq_exp(q1, q2, qn1, qn2, sig, ls)
+                    kq = k2_sq_exp(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += kq * fj * dfi
-                    dk_dq = k2_sq_exp_dev(q1, q2, qn1, qn2, sig, ls)
+                    dk_dq = k2_sq_exp_dev(q1, q2, qn1, qn2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq * fi * fj
+                    dk_dr = k2_sq_exp_dev(ri, rj, q1, q2, qn1, qn2, sig, ls)
+                    kern -= dk_dr * ci * fi * fj
 
                 if c1 == e2 and c2 == e1:
-                    kq = k2_sq_exp(q1, qn2, qn1, q2, sig, ls)
+                    kq = k2_sq_exp(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += kq * fj * dfi
-                    dk_dq = k2_sq_exp_dev(q1, qn2, qn1, q2, sig, ls)
+                    dk_dq = k2_sq_exp_dev(q1, qn2, qn1, q2, ri, rj, sig, ls)
                     kern += dq1_dr * dk_dq * fi * fj
+                    dk_dr = k2_sq_exp_dev(ri, rj, q1, qn2, qn1, q2, sig, ls)
+                    kern -= dk_dr * ci * fi * fj
 
                 # 2nd neighbors
                 dqn1_dr = q_neigh_grads_1[m, d1 - 1]
@@ -4564,11 +4711,11 @@ def many_body_mc_force_en_jit(
 
                     if e1 == c2 and en1 == e2:
                         if c1 == s:
-                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, q2, q2n1, qn2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * fj
                     if en1 == c2 and e1 == e2:
                         if c1 == s:
-                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, sig, ls)
+                            dk_dq = k2_sq_exp_dev(qn1, qn2, q2n1, q2, rni, rj, sig, ls)
                             kern += dk_dq * dqn1_dr * fni * fj
 
     kern /= -2
@@ -4620,14 +4767,15 @@ def many_body_mc_en_jit(
                 e2 = etypes2[n]
 
                 if c1 == c2 and e1 == e2:
-                    kern += k2_sq_exp(q1, q2, qn1, qn2, sig, ls) * fi * fj
+                    kern += k2_sq_exp(q1, q2, qn1, qn2, ri, rj, sig, ls) * fi * fj
 
                 if c1 == e2 and c2 == e1:
-                    kern += k2_sq_exp(q1, qn2, qn1, q2, sig, ls) * fi * fj
+                    kern += k2_sq_exp(q1, qn2, qn1, q2, ri, rj, sig, ls) * fi * fj
 
     kern /= 4
 
     return kern
+
 
 _str_to_kernel = {
     "two_body_mc": two_body_mc,
