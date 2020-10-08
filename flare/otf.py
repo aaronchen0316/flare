@@ -286,7 +286,7 @@ class OTF:
 
             counter += 1
             # TODO: Reinstate velocity rescaling.
-            self.md_step() # update positions by Verlet
+            self.md_step()  # update positions by Verlet
             self.rescale_temperature(self.structure.positions)
             self.curr_step += 1
 
