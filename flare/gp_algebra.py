@@ -1124,7 +1124,7 @@ def energy_energy_vector_unit(
         structure = training_structures[m_index + s]
         kern_curr = 0
         for environment in structure:
-            kern_curr += kernel(x, environment, *args)
+            kern_curr += kernel.energy_energy(x, environment)
 
         energy_energy_unit[m_index] = kern_curr
 
@@ -1140,23 +1140,19 @@ def energy_force_vector_unit(
 
     training_data = _global_training_data[name]
 
-    ds = [1, 2, 3]
     size = (e - s) * 3
-    k_v = np.zeros(
-        size,
-    )
+    k_v = np.zeros(size)
 
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
 
-    for m_index in range(size):
-        x_2 = training_data[int(math.floor(m_index / 3)) + s]
-        d_2 = ds[m_index % 3]
-        k_v[m_index] = kernel(x_2, x, d_2, *args)
+    for m_index in range(e - s):
+        x_2 = training_data[m_index]
+        k_v[3 * m_index : 3 * m_index + 3] = kernel.force_energy(x_2, x)
 
     return k_v
 
 
-def force_energy_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask, d_1):
+def force_energy_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask):
     """
     Gets part of the force/energy vector.
     """
@@ -1165,22 +1161,20 @@ def force_energy_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask, d_
 
     size = e - s
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
-    force_energy_unit = np.zeros(
-        size,
-    )
+    k_v = np.zeros((3, size))
 
     for m_index in range(size):
         training_structure = training_structures[m_index + s]
         kern_curr = 0
         for environment in training_structure:
-            kern_curr += kernel(x, environment, d_1, *args)
+            kern_curr += kernel.force_energy(x, environment)
 
-        force_energy_unit[m_index] = kern_curr
+        k_v[:, m_index] = kern_curr
 
-    return force_energy_unit
+    return k_v 
 
 
-def force_force_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask, d_1):
+def force_force_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask):
     """
     Gets part of the force/force vector.
     """
@@ -1188,21 +1182,19 @@ def force_force_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask, d_1
     training_data = _global_training_data[name]
 
     size = e - s
-    ds = [1, 2, 3]
 
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
 
-    k_v = np.zeros(size * 3)
+    k_v = np.zeros((3, size * 3))
 
     for m_index in range(size):
         x_2 = training_data[m_index + s]
-        for d_2 in ds:
-            k_v[m_index * 3 + d_2 - 1] = kernel(x, x_2, d_1, d_2, *args)
+        k_v[:, 3 * m_index : 3 * m_index + 3] = kernel.force_force(x, x_2)
 
     return k_v
 
 
-def efs_force_vector_unit(name, s, e, x, efs_force_kernel, hyps, cutoffs, hyps_mask):
+def efs_force_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask):
 
     training_data = _global_training_data[name]
 
@@ -1215,7 +1207,7 @@ def efs_force_vector_unit(name, s, e, x, efs_force_kernel, hyps, cutoffs, hyps_m
 
     for m_index in range(size):
         x_2 = training_data[m_index + s]
-        ef, ff, sf = efs_force_kernel(x, x_2, *args)
+        ef, ff, sf = kernel.efs_force(x, x_2)
 
         ind1 = m_index * 3
         ind2 = (m_index + 1) * 3
@@ -1227,7 +1219,7 @@ def efs_force_vector_unit(name, s, e, x, efs_force_kernel, hyps, cutoffs, hyps_m
     return k_ef, k_ff, k_sf
 
 
-def efs_energy_vector_unit(name, s, e, x, efs_energy_kernel, hyps, cutoffs, hyps_mask):
+def efs_energy_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask):
 
     training_structures = _global_training_structures[name]
 
@@ -1246,7 +1238,7 @@ def efs_energy_vector_unit(name, s, e, x, efs_energy_kernel, hyps, cutoffs, hyps
         se_curr = np.zeros(6)
 
         for environment in training_structure:
-            ee, fe, se = efs_energy_kernel(x, environment, *args)
+            ee, fe, se = kernel.efs_energy(x, environment)
             ee_curr += ee
             fe_curr += fe
             se_curr += se
@@ -1336,7 +1328,7 @@ def energy_force_vector(
 
 
 def force_energy_vector(
-    name, kernel, x, d_1, hyps, cutoffs=None, hyps_mask=None, n_cpus=1, n_sample=100
+    name, kernel, x, hyps, cutoffs=None, hyps_mask=None, n_cpus=1, n_sample=100
 ):
     """
     Get a vector of covariances between a force component of a test environment
@@ -1349,7 +1341,7 @@ def force_energy_vector(
         n_cpus = mp.cpu_count()
     if n_cpus == 1:
         return force_energy_vector_unit(
-            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask, d_1
+            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask
         )
 
     block_id, nbatch = partition_vector(n_sample, size, n_cpus)
@@ -1368,14 +1360,13 @@ def force_energy_vector(
         nbatch,
         size,
         mult,
-        d_1,
     )
 
     return force_energy_vector
 
 
 def force_force_vector(
-    name, kernel, x, d_1, hyps, cutoffs=None, hyps_mask=None, n_cpus=1, n_sample=100
+    name, kernel, x, hyps, cutoffs=None, hyps_mask=None, n_cpus=1, n_sample=100
 ):
     """
     Get a vector of covariances between a force component of a test environment
@@ -1388,7 +1379,7 @@ def force_force_vector(
         n_cpus = mp.cpu_count()
     if n_cpus == 1:
         return force_force_vector_unit(
-            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask, d_1
+            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask
         )
 
     block_id, nbatch = partition_vector(n_sample, size, n_cpus)
@@ -1407,7 +1398,7 @@ def force_force_vector(
         nbatch,
         size,
         mult,
-        d_1,
+        #d_1,
     )
 
     return k12_v
@@ -1415,7 +1406,7 @@ def force_force_vector(
 
 def efs_force_vector(
     name,
-    efs_force_kernel,
+    kernel,
     x,
     hyps,
     cutoffs=None,
@@ -1437,7 +1428,7 @@ def efs_force_vector(
     # Perform serial calculation if n_cpus = 1.
     if n_cpus == 1:
         return efs_force_vector_unit(
-            name, 0, size, x, efs_force_kernel, hyps, cutoffs, hyps_mask
+            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask
         )
 
     # Otherwise, perform parallel calculation.
@@ -1451,7 +1442,7 @@ def efs_force_vector(
         pack_function,
         name,
         x,
-        efs_force_kernel,
+        kernel,
         hyps,
         cutoffs,
         hyps_mask,
@@ -1467,7 +1458,7 @@ def efs_force_vector(
 
 def efs_energy_vector(
     name,
-    efs_energy_kernel,
+    kernel,
     x,
     hyps,
     cutoffs=None,
@@ -1489,7 +1480,7 @@ def efs_energy_vector(
     # Perform serial calculation if n_cpus = 1.
     if n_cpus == 1:
         return efs_energy_vector_unit(
-            name, 0, size, x, efs_energy_kernel, hyps, cutoffs, hyps_mask
+            name, 0, size, x, kernel, hyps, cutoffs, hyps_mask
         )
 
     # Otherwise, perform parallel calculation.
@@ -1502,7 +1493,7 @@ def efs_energy_vector(
         pack_function,
         name,
         x,
-        efs_energy_kernel,
+        kernel,
         hyps,
         cutoffs,
         hyps_mask,
@@ -1522,7 +1513,7 @@ def get_kernel_vector(
     #force_force_kernel: Callable,
     #force_energy_kernel: Callable,
     x,
-    d_1,
+    #d_1,
     hyps,
     cutoffs=None,
     hyps_mask=None,
@@ -1532,25 +1523,26 @@ def get_kernel_vector(
 
     size1 = len(_global_training_data[name])
     size2 = len(_global_training_structures[name])
-    kernel_vector = np.zeros(size1 * 3 + size2)
+    kernel_vector = np.zeros((3, size1 * 3 + size2))
 
     force_vector = force_force_vector(
-        name, kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
     energy_vector = force_energy_vector(
-        name, kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
-    kernel_vector[0 : size1 * 3] = force_vector
-    kernel_vector[size1 * 3 :] = energy_vector
+    kernel_vector[:, 0 : size1 * 3] = force_vector
+    kernel_vector[:, size1 * 3 :] = energy_vector
 
     return kernel_vector
 
 
 def en_kern_vec(
     name,
-    energy_force_kernel,
-    energy_energy_kernel,
+    kernel,
+    #energy_force_kernel,
+    #energy_energy_kernel,
     x,
     hyps,
     cutoffs=None,
@@ -1564,10 +1556,10 @@ def en_kern_vec(
     kernel_vector = np.zeros(size1 * 3 + size2)
 
     force_vector = energy_force_vector(
-        name, energy_force_kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
     energy_vector = energy_energy_vector(
-        name, energy_energy_kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     kernel_vector[0 : size1 * 3] = force_vector
@@ -1578,8 +1570,9 @@ def en_kern_vec(
 
 def efs_kern_vec(
     name,
-    efs_force_kernel,
-    efs_energy_kernel,
+    kernel,
+    #efs_force_kernel,
+    #efs_energy_kernel,
     x,
     hyps,
     cutoffs=None,
@@ -1599,11 +1592,11 @@ def efs_kern_vec(
 
     # Compute force and energy arrays.
     force_arrays = efs_force_vector(
-        name, efs_force_kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     energy_arrays = efs_energy_vector(
-        name, efs_energy_kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     # Populate arrays.

@@ -616,21 +616,16 @@ class GaussianProcess:
         elif size3 != self.alpha.shape[0]:
             self.set_L_alpha()
 
-    def predict(self, x_t: AtomicEnvironment, d: int) -> [float, float]:
+    def predict(self, x_t: AtomicEnvironment) -> ("np.ndarray", "np.ndarray"):
         """
         Predict a force component of the central atom of a local environment.
 
         Args:
             x_t (AtomicEnvironment): Input local environment.
-            d (int): Force component to be predicted (1 is x, 2 is y, and
-                3 is z).
 
         Return:
             (float, float): Mean and epistemic variance of the prediction.
         """
-
-        if d not in [1, 2, 3]:
-            raise ValueError("d should be 1, 2, or 3")
 
         # Kernel vector allows for evaluation of atomic environments.
         if self.parallel and not self.per_atom_par:
@@ -646,13 +641,13 @@ class GaussianProcess:
             #self.force_kernel,
             #self.energy_force_kernel,
             x_t,
-            d,
+            #d,
             self.hyps,
             cutoffs=self.cutoffs,
             hyps_mask=self.hyps_mask,
             n_cpus=n_cpus,
             n_sample=self.n_sample,
-        )
+        )  # (3, N_t)
 
         # Guarantee that alpha is up to date with training set
         self.check_L_alpha()
@@ -664,8 +659,9 @@ class GaussianProcess:
         # pass args to kernel based on if mult. hyperparameters in use
         args = from_mask_to_args(self.hyps, self.cutoffs, self.hyps_mask)
 
-        self_kern = self.force_kernel(x_t, x_t, d, d, *args)
-        pred_var = self_kern - np.matmul(np.matmul(k_v, self.ky_mat_inv), k_v)
+        self_kern = self.kernel.force_force(x_t, x_t)
+        pred_var = self_kern - (k_v @ self.ky_mat_inv) @ k_v.T
+        pred_var = np.diag(pred_var) # only use the diag as variance
 
         return pred_mean, pred_var
 
@@ -702,8 +698,9 @@ class GaussianProcess:
 
         k_v = en_kern_vec(
             self.name,
-            self.energy_force_kernel,
-            self.energy_kernel,
+            self.kernel,
+            #self.energy_force_kernel,
+            #self.energy_kernel,
             x_t,
             self.hyps,
             cutoffs=self.cutoffs,
@@ -737,8 +734,9 @@ class GaussianProcess:
         # get kernel vector
         k_v = en_kern_vec(
             self.name,
-            self.energy_force_kernel,
-            self.energy_kernel,
+            self.kernel,
+            #self.energy_force_kernel,
+            #self.energy_kernel,
             x_t,
             self.hyps,
             cutoffs=self.cutoffs,
@@ -754,7 +752,7 @@ class GaussianProcess:
         v_vec = solve_triangular(self.l_mat, k_v, lower=True)
         args = from_mask_to_args(self.hyps, self.cutoffs, self.hyps_mask)
 
-        self_kern = self.energy_kernel(x_t, x_t, *args)
+        self_kern = self.kernel.energy_energy(x_t, x_t)
 
         pred_var = self_kern - np.matmul(v_vec, v_vec)
 
@@ -775,8 +773,9 @@ class GaussianProcess:
 
         energy_vector, force_array, stress_array = efs_kern_vec(
             self.name,
-            self.efs_force_kernel,
-            self.efs_energy_kernel,
+            self.kernel,
+            #self.efs_force_kernel,
+            #self.efs_energy_kernel,
             x_t,
             self.hyps,
             cutoffs=self.cutoffs,
@@ -795,7 +794,7 @@ class GaussianProcess:
 
         # Compute uncertainties.
         args = from_mask_to_args(self.hyps, self.cutoffs, self.hyps_mask)
-        self_en, self_force, self_stress = self.efs_self_kernel(x_t, *args)
+        self_en, self_force, self_stress = self.kernel.efs_self(x_t)
 
         en_var = self_en - np.matmul(
             np.matmul(energy_vector, self.ky_mat_inv), energy_vector

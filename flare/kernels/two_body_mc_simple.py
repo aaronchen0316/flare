@@ -57,15 +57,8 @@ class TwoBodyKernel:
         return efs_force(*args)
 
     def efs_self(self, env1: AtomicEnvironment):
-        return efs_self(
-            env1.bond_array_2,
-            env1.ctype,
-            env1.etypes,
-            self.signal_variance,
-            self.length_scale,
-            self.cutoff,
-            self.cutoff_func,
-        )
+        args = self.get_self_args(env1)
+        return efs_self(*args)
 
     def get_args(self, env1, env2):
         return (
@@ -81,6 +74,16 @@ class TwoBodyKernel:
             self.cutoff_func,
         )
 
+    def get_self_args(self, env1):
+        return (
+            env1.bond_array_2,
+            env1.ctype,
+            env1.etypes,
+            self.signal_variance,
+            self.length_scale,
+            self.cutoff,
+            self.cutoff_func,
+        )
 
 @njit
 def energy_energy(

@@ -250,10 +250,10 @@ class TestAlgebra:
         test_gp = all_gps[multihyps]
         test_gp.parallel = par
         test_gp.per_atom_par = per_atom_par
-        pred = test_gp.predict(x_t=validation_env, d=1)
+        pred = test_gp.predict(x_t=validation_env)
         assert len(pred) == 2
-        assert isinstance(pred[0], float)
-        assert isinstance(pred[1], float)
+        assert len(pred[0]) == 3
+        assert len(pred[1]) == 3
 
     @pytest.mark.parametrize(
         "par, per_atom_par, n_cpus",
@@ -279,12 +279,12 @@ class TestAlgebra:
 
         en_pred_2, en_var_2 = test_gp.predict_local_energy_and_var(validation_env)
 
-        force_pred_2, force_var_2 = test_gp.predict(validation_env, 1)
+        force_pred_2, force_var_2 = test_gp.predict(validation_env)
 
         assert np.isclose(en_pred, en_pred_2)
         assert np.isclose(en_var, en_var_2)
-        assert np.isclose(force_pred[0], force_pred_2)
-        assert np.isclose(force_var[0], force_var_2)
+        assert np.allclose(force_pred, force_pred_2)
+        assert np.allclose(force_var, force_var_2)
 
     @pytest.mark.parametrize("par, n_cpus", [(True, 2), (False, 1)])
     @pytest.mark.parametrize("multihyps", multihyps_list)
