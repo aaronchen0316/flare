@@ -196,7 +196,7 @@ class TrajectoryTrainer:
                 self.pred_func = predict_on_structure_par_en
             else:
                 self.pred_func = predict_on_structure_par
-            self.pred_func_env = self.gp.predict_force_xyz
+            self.pred_func_env = self.gp.predict
 
         # Parameters for negotiating with the training frames
 

@@ -1037,9 +1037,10 @@ def get_ky_mat_update(
     n_envs_prev: int,
     hyps: np.ndarray,
     name: str,
-    force_kernel: Callable,
-    energy_kernel: Callable,
-    force_energy_kernel: Callable,
+    kernel,
+    #force_kernel: Callable,
+    #energy_kernel: Callable,
+    #force_energy_kernel: Callable,
     energy_noise: float,
     cutoffs=None,
     hyps_mask=None,
@@ -1058,7 +1059,7 @@ def get_ky_mat_update(
         n_envs_prev,
         hyps,
         name,
-        force_kernel,
+        kernel,
         cutoffs,
         hyps_mask,
         n_cpus,
@@ -1070,7 +1071,7 @@ def get_ky_mat_update(
         n_envs_prev,
         hyps,
         name,
-        energy_kernel,
+        kernel,
         energy_noise,
         cutoffs,
         hyps_mask,
@@ -1083,7 +1084,7 @@ def get_ky_mat_update(
         n_envs_prev,
         hyps,
         name,
-        force_energy_kernel,
+        kernel,
         energy_noise,
         cutoffs,
         hyps_mask,
@@ -1132,7 +1133,7 @@ def energy_energy_vector_unit(
 
 
 def energy_force_vector_unit(
-    name, s, e, x, kernel, hyps, cutoffs=None, hyps_mask=None, d_1=None
+    name, s, e, x, kernel, hyps, cutoffs=None, hyps_mask=None
 ):
     """
     Gets part of the energy/force vector.
@@ -1208,6 +1209,7 @@ def efs_force_vector_unit(name, s, e, x, kernel, hyps, cutoffs, hyps_mask):
     for m_index in range(size):
         x_2 = training_data[m_index + s]
         ef, ff, sf = kernel.efs_force(x, x_2)
+        ef_en = kernel.force_energy(x_2, x)
 
         ind1 = m_index * 3
         ind2 = (m_index + 1) * 3

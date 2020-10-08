@@ -35,7 +35,7 @@ def predict_on_atom(
     chemenv = AtomicEnvironment(structure, atom, gp.cutoffs, cutoffs_mask=gp.hyps_mask)
     # predict force components and standard deviations
 
-    force, var = gp.predict_force_xyz(chemenv)
+    force, var = gp.predict(chemenv)
     std = np.sqrt(np.abs(var))
 
     return force, std
@@ -62,7 +62,7 @@ def predict_on_atom_en(
     chemenv = AtomicEnvironment(structure, atom, gp.cutoffs, cutoffs_mask=gp.hyps_mask)
 
     # Predict forces / std. dev / energy
-    force, var = gp.predict_force_xyz(chemenv)
+    force, var = gp.predict(chemenv)
     std = np.sqrt(np.abs(var))
     local_energy = gp.predict_local_energy(chemenv)
 
@@ -136,7 +136,7 @@ def predict_on_structure(
 
         chemenv = AtomicEnvironment(structure, n, gp.cutoffs, cutoffs_mask=gp.hyps_mask)
 
-        force, var = gp.predict_force_xyz(chemenv)
+        force, var = gp.predict(chemenv)
         std = np.sqrt(np.abs(var))
 
         forces[n] = force
@@ -468,7 +468,7 @@ def predict_on_structure_en(
 
         for i in range(3):
 
-            force, var = gp.predict_force_xyz(chemenv)
+            force, var = gp.predict(chemenv)
             std = np.sqrt(np.abs(var))
 
             forces[n] = force
