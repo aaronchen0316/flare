@@ -63,7 +63,6 @@ def two_plus_three_gp() -> GaussianProcess:
 
     # test update_db
     gpname = "2+3_mc"
-    cutoffs = np.ones(2) * 0.8
 
     gp_model = GaussianProcess(
         kernel_name=gpname,
@@ -347,10 +346,9 @@ class TestIO:
 
         dumpcompare(new_gp_dict, old_gp_dict)
 
-        for d in [1, 2, 3]:
-            assert np.all(
-                test_gp.predict(x_t=validation_env, d=d)
-                == new_gp.predict(x_t=validation_env, d=d)
+        assert np.allclose(
+                test_gp.predict(x_t=validation_env),
+                new_gp.predict(x_t=validation_env)
             )
         assert new_gp.training_data is not test_gp.training_data
 
@@ -363,10 +361,9 @@ class TestIO:
 
         new_gp = GaussianProcess.from_file("test_gp_write.pickle")
 
-        for d in [1, 2, 3]:
-            assert np.all(
-                test_gp.predict(x_t=validation_env, d=d)
-                == new_gp.predict(x_t=validation_env, d=d)
+        assert np.allclose(
+                test_gp.predict(x_t=validation_env),
+                new_gp.predict(x_t=validation_env)
             )
 
         try:
@@ -378,11 +375,12 @@ class TestIO:
 
         with open("test_gp_write.json", "r") as f:
             new_gp = GaussianProcess.from_dict(json.loads(f.readline()))
-        for d in [1, 2, 3]:
-            assert np.all(
-                test_gp.predict(x_t=validation_env, d=d)
-                == new_gp.predict(x_t=validation_env, d=d)
+
+        assert np.allclose(
+                test_gp.predict(x_t=validation_env),
+                new_gp.predict(x_t=validation_env)
             )
+
         os.remove("test_gp_write.json")
 
         with raises(ValueError):

@@ -665,20 +665,6 @@ class GaussianProcess:
 
         return pred_mean, pred_var
 
-    def predict_force_xyz(self, x_t: AtomicEnvironment) -> ("np.ndarray", "np.ndarray"):
-        """
-        Simple wrapper to predict all three components of a force in one go.
-        :param x_t:
-        :return:
-        """
-        forces = []
-        stds = []
-        for d in (1, 2, 3):
-            force, std = self.predict(x_t, d)
-            forces.append(force)
-            stds.append(std)
-        return np.array(forces), np.array(stds)
-
     def predict_local_energy(self, x_t: AtomicEnvironment) -> float:
         """Predict the local energy of a local environment.
 
@@ -866,9 +852,10 @@ class GaussianProcess:
             self.n_envs_prev,
             self.hyps,
             self.name,
-            self.force_kernel,
-            self.energy_kernel,
-            self.energy_force_kernel,
+            self.kernel,
+            #self.force_kernel,
+            #self.energy_kernel,
+            #self.energy_force_kernel,
             self.energy_noise,
             cutoffs=self.cutoffs,
             hyps_mask=self.hyps_mask,
@@ -928,6 +915,7 @@ class GaussianProcess:
         # Remove the callables
         for key in [
             "kernel",
+            "force_kernel",
             "kernel_grad",
             "energy_kernel",
             "energy_force_kernel",
