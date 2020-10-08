@@ -34,6 +34,7 @@ from flare.utils.element_coder import NumpyEncoder, Z_to_element
 from numpy.random import random
 from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
+from flare.kernels.kernel_mc_simple import Kernel
 
 
 class GaussianProcess:
@@ -115,7 +116,7 @@ class GaussianProcess:
         self.kernels = (
             ["twobody", "threebody"]
             if kernels is None
-            else kernel_str_to_array("".join(kernels))
+            else kernel_str_to_array("_".join(kernels))
         )
         self.cutoffs = {} if cutoffs is None else cutoffs
         self.hyp_labels = hyp_labels
@@ -127,11 +128,37 @@ class GaussianProcess:
 
         # ------------  "computed" attributes ------------
 
-        if self.output is None:
-            self.logger_name = self.name + "GaussianProcess"
-            set_logger(self.logger_name, stream=True, fileout_name=None, verbose="info")
-        else:
-            self.logger_name = self.output.basename + "log"
+        if self.logger_name is None:
+            if self.output is None:
+                self.logger_name = self.name + "GaussianProcess"
+                set_logger(
+                    self.logger_name, stream=True, fileout_name=None, verbose="info"
+                )
+            else:
+                self.logger_name = self.output.basename + "log"
+        logger = logging.getLogger(self.logger_name)
+
+        if self.cutoffs == {}:
+            # If no cutoffs are passed in, assume 7 A for 2 body, 3.5 for
+            # 3-body.
+            cutoffs = {}
+            if "twobody" in self.kernels:
+                cutoffs["twobody"] = 7
+            if "threebody" in self.kernels:
+                cutoffs["threebody"] = 3.5
+            if "manybody" in self.kernels:
+                raise ValueError(
+                    "No cutoff was set for the manybody kernel."
+                    "A default value will not be set by default."
+                )
+
+            self.cutoffs = cutoffs
+            logger.warning(
+                "Warning: No cutoffs were set for your GP."
+                "Default values have been assigned but you "
+                "should think carefully about which are "
+                "appropriate for your use case."
+            )
 
         if self.hyps is None:
             # If no hyperparameters are passed in, assume 2 hyps for each
@@ -140,17 +167,26 @@ class GaussianProcess:
         else:
             self.hyps = np.array(self.hyps, dtype=np.float64)
 
-        kernel, grad, ek, efk, efs_e, efs_f, efs_self = str_to_kernel_set(
-            self.kernels, self.component, self.hyps_mask
+        # fk, grad, ek, efk, efs_e, efs_f, efs_self = str_to_kernel_set(
+        #    self.kernels, self.component, self.hyps_mask
+        # )
+        # self.kernel = Kernel(self.kernels, self.hyps, self.cutoffs)
+
+        # self.force_kernel = self.kernel.force_force
+        # self.kernel_grad = self.kernel.force_force_gradient
+        # self.energy_force_kernel = self.kernel.force_energy
+        # self.energy_kernel = self.kernel.energy_energy
+        # self.efs_energy_kernel = self.kernel.efs_energy
+        # self.efs_force_kernel = self.kernel.efs_force
+        # self.efs_self_kernel = self.kernel.efs_self
+        # self.kernels = kernel_str_to_array(kernel.__name__)
+        self.update_kernel(
+            self.kernels,
+            self.component,
+            self.hyps,
+            self.cutoffs,
+            self.hyps_mask,
         )
-        self.kernel = kernel
-        self.kernel_grad = grad
-        self.energy_force_kernel = efk
-        self.energy_kernel = ek
-        self.efs_energy_kernel = efs_e
-        self.efs_force_kernel = efs_f
-        self.efs_self_kernel = efs_self
-        self.kernels = kernel_str_to_array(kernel.__name__)
 
         # parallelization
         if self.parallel:
@@ -196,38 +232,6 @@ class GaussianProcess:
         self.ky_mat_file = None
         # Flag if too-big warning has been printed for this model
         self.large_warning = False
-
-        if self.logger_name is None:
-            if self.output is None:
-                self.logger_name = self.name + "GaussianProcess"
-                set_logger(
-                    self.logger_name, stream=True, fileout_name=None, verbose="info"
-                )
-            else:
-                self.logger_name = self.output.basename + "log"
-        logger = logging.getLogger(self.logger_name)
-
-        if self.cutoffs == {}:
-            # If no cutoffs are passed in, assume 7 A for 2 body, 3.5 for
-            # 3-body.
-            cutoffs = {}
-            if "twobody" in self.kernels:
-                cutoffs["twobody"] = 7
-            if "threebody" in self.kernels:
-                cutoffs["threebody"] = 3.5
-            if "manybody" in self.kernels:
-                raise ValueError(
-                    "No cutoff was set for the manybody kernel."
-                    "A default value will not be set by default."
-                )
-
-            self.cutoffs = cutoffs
-            logger.warning(
-                "Warning: No cutoffs were set for your GP."
-                "Default values have been assigned but you "
-                "should think carefully about which are "
-                "appropriate for your use case."
-            )
 
         self.check_instantiation()
 
@@ -303,14 +307,9 @@ class GaussianProcess:
         cutoffs: dict = None,
         hyps_mask: dict = None,
     ):
-        kernel, grad, ek, efk, _, _, _ = str_to_kernel_set(
-            kernels, component, hyps_mask
-        )
-        self.kernel = kernel
-        self.kernel_grad = grad
-        self.energy_force_kernel = efk
-        self.energy_kernel = ek
-        self.kernels = kernel_str_to_array(kernel.__name__)
+        # kernel, grad, ek, efk, _, _, _ = str_to_kernel_set(
+        #    kernels, component, hyps_mask
+        # )
 
         if hyps_mask is not None:
             self.hyps_mask = hyps_mask
@@ -328,6 +327,18 @@ class GaussianProcess:
 
         if hyps is not None:
             self.hyps = hyps
+
+        self.kernel = Kernel(kernels, hyps, cutoffs)
+
+        self.force_kernel = self.kernel.force_force
+        self.kernel_grad = self.kernel.force_force_gradient
+        self.energy_force_kernel = self.kernel.force_energy
+        self.energy_kernel = self.kernel.energy_energy
+        self.efs_energy_kernel = self.kernel.efs_energy
+        self.efs_force_kernel = self.kernel.efs_force
+        self.efs_self_kernel = self.kernel.efs_self
+        kern_str = "_".join(list(self.kernels))
+        self.kernels = kernel_str_to_array(kern_str)
 
     def update_db(
         self,
@@ -507,7 +518,7 @@ class GaussianProcess:
 
         args = (
             self.name,
-            self.kernel_grad,
+            self.kernel,
             logger_name,
             self.cutoffs,
             self.hyps_mask,
@@ -632,7 +643,8 @@ class GaussianProcess:
         k_v = get_kernel_vector(
             self.name,
             self.kernel,
-            self.energy_force_kernel,
+            #self.force_kernel,
+            #self.energy_force_kernel,
             x_t,
             d,
             self.hyps,
@@ -652,7 +664,7 @@ class GaussianProcess:
         # pass args to kernel based on if mult. hyperparameters in use
         args = from_mask_to_args(self.hyps, self.cutoffs, self.hyps_mask)
 
-        self_kern = self.kernel(x_t, x_t, d, d, *args)
+        self_kern = self.force_kernel(x_t, x_t, d, d, *args)
         pred_var = self_kern - np.matmul(np.matmul(k_v, self.ky_mat_inv), k_v)
 
         return pred_mean, pred_var
@@ -799,8 +811,9 @@ class GaussianProcess:
             self.hyps,
             self.name,
             self.kernel,
-            self.energy_kernel,
-            self.energy_force_kernel,
+            #self.force_kernel,
+            #self.energy_kernel,
+            #self.energy_force_kernel,
             self.energy_noise,
             cutoffs=self.cutoffs,
             hyps_mask=self.hyps_mask,
@@ -840,7 +853,7 @@ class GaussianProcess:
             self.n_envs_prev,
             self.hyps,
             self.name,
-            self.kernel,
+            self.force_kernel,
             self.energy_kernel,
             self.energy_force_kernel,
             self.energy_noise,

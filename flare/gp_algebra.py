@@ -494,30 +494,33 @@ def get_force_block_pack(
     training_data = _global_training_data[name]
     size1 = (e1 - s1) * 3
     size2 = (e2 - s2) * 3
-    force_block = np.zeros([size1, size2])
+    k_mat = np.zeros([size1, size2])
 
     ds = [1, 2, 3]
 
     # calculate elements
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
 
-    for m_index in range(size1):
-        x_1 = training_data[int(math.floor(m_index / 3)) + s1]
-        d_1 = ds[m_index % 3]
-        if same:
-            lowbound = m_index
-        else:
-            lowbound = 0
-        for n_index in range(lowbound, size2):
-            x_2 = training_data[int(math.floor(n_index / 3)) + s2]
-            d_2 = ds[n_index % 3]
-            kern_curr = kernel(x_1, x_2, d_1, d_2, *args)
-            # store kernel value
-            force_block[m_index, n_index] = kern_curr
-            if same:
-                force_block[n_index, m_index] = kern_curr
+    for m_index in range(e1 - s1):
+        x_1 = training_data[m_index + s1]
 
-    return force_block
+        if same:
+            lowerbound = m_index
+        else:
+            lowerbound = 0
+
+        for n_index in range(e2 - s2):
+            x_2 = training_data[n_index + s2]
+
+            cov = kernel.force_force(x_1, x_2)
+            k_mat[3 * m_index : 3 * m_index + 3, 3 * n_index : 3 * n_index + 3] = cov
+
+            if same:
+                k_mat[
+                    3 * n_index : 3 * n_index + 3, 3 * m_index : 3 * m_index + 3
+                ] = cov.T
+
+    return k_mat
 
 
 def get_energy_block_pack(
@@ -537,34 +540,34 @@ def get_energy_block_pack(
     training_structures = _global_training_structures[name]
     size1 = e1 - s1
     size2 = e2 - s2
-    energy_block = np.zeros([size1, size2])
+    k_mat = np.zeros([size1, size2])
 
     # calculate elements
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
 
-    for m_index in range(size1):
+    for m_index in range(e1 - s1):
         struc_1 = training_structures[m_index + s1]
+
         if same:
-            lowbound = m_index
+            lowerbound = m_index
         else:
-            lowbound = 0
+            lowerbound = 0
 
-        for n_index in range(lowbound, size2):
+        for n_index in range(e2 - s2):
             struc_2 = training_structures[n_index + s2]
+            
+            cov = 0
+            for x_1 in struc_1:
+                for x_2 in struc_2:
+                    cov += kernel.energy_energy(x_1, x_2)
 
-            # Loop over environments in both structures to compute the
-            # energy/energy kernel.
-            kern_curr = 0
-            for environment_1 in struc_1:
-                for environment_2 in struc_2:
-                    kern_curr += kernel(environment_1, environment_2, *args)
+            k_mat[m_index, n_index] = cov
 
-            # Store kernel value.
-            energy_block[m_index, n_index] = kern_curr
             if same:
-                energy_block[n_index, m_index] = kern_curr
+                k_mat[n_index, m_index] = cov
 
-    return energy_block
+    return k_mat
+
 
 
 def get_force_energy_block_pack(
@@ -584,29 +587,26 @@ def get_force_energy_block_pack(
     training_structures = _global_training_structures[name]
     size1 = (e1 - s1) * 3
     size2 = e2 - s2
-    force_energy_block = np.zeros([size1, size2])
+    k_mat = np.zeros([size1, size2])
 
     ds = [1, 2, 3]
 
     # calculate elements
     args = from_mask_to_args(hyps, cutoffs, hyps_mask)
 
-    for m_index in range(size1):
-        environment_1 = training_data[int(math.floor(m_index / 3)) + s1]
-        d_1 = ds[m_index % 3]
+    for m_index in range(e1 - s1):
+        x_1 = training_data[m_index + s1]
 
-        for n_index in range(size2):
-            structure = training_structures[n_index + s2]
+        for n_index in range(e2 - s2):
+            struc_2 = training_structures[n_index + s2]
 
-            # Loop over environments in the training structure.
-            kern_curr = 0
-            for environment_2 in structure:
-                kern_curr += kernel(environment_1, environment_2, d_1, *args)
+            cov = 0
+            for x_2 in struc_2:
+                cov += kernel.force_energy(x_1, x_2)
 
-            # store kernel value
-            force_energy_block[m_index, n_index] = kern_curr
+            k_mat[3 * m_index : 3 * m_index + 3, n_index] = cov
 
-    return force_energy_block
+    return k_mat
 
 
 def get_force_block(
@@ -759,9 +759,10 @@ def get_force_energy_block(
 def get_Ky_mat(
     hyps: np.ndarray,
     name: str,
-    force_kernel: Callable,
-    energy_kernel: Callable,
-    force_energy_kernel: Callable,
+    kernel,
+    #force_kernel: Callable,
+    #energy_kernel: Callable,
+    #force_energy_kernel: Callable,
     energy_noise,
     cutoffs=None,
     hyps_mask=None,
@@ -779,15 +780,15 @@ def get_Ky_mat(
 
     # Assemble the full covariance matrix block-by-block.
     force_block = get_force_block(
-        hyps, name, force_kernel, cutoffs, hyps_mask, n_cpus, n_sample
+        hyps, name, kernel, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     energy_block = get_energy_block(
-        hyps, name, energy_kernel, energy_noise, cutoffs, hyps_mask, n_cpus, n_sample
+        hyps, name, kernel, energy_noise, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     force_energy_block = get_force_energy_block(
-        hyps, name, force_energy_kernel, cutoffs, hyps_mask, n_cpus, n_sample
+        hyps, name, kernel, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     ky_mat[0:size1, 0:size1] = force_block
@@ -1517,8 +1518,9 @@ def efs_energy_vector(
 
 def get_kernel_vector(
     name,
-    force_force_kernel: Callable,
-    force_energy_kernel: Callable,
+    kernel,
+    #force_force_kernel: Callable,
+    #force_energy_kernel: Callable,
     x,
     d_1,
     hyps,
@@ -1533,10 +1535,10 @@ def get_kernel_vector(
     kernel_vector = np.zeros(size1 * 3 + size2)
 
     force_vector = force_force_vector(
-        name, force_force_kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
     energy_vector = force_energy_vector(
-        name, force_energy_kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
+        name, kernel, x, d_1, hyps, cutoffs, hyps_mask, n_cpus, n_sample
     )
 
     kernel_vector[0 : size1 * 3] = force_vector
@@ -1628,7 +1630,7 @@ def get_ky_and_hyp_pack(
     e2,
     same: bool,
     hyps: np.ndarray,
-    kernel_grad,
+    kernel,
     cutoffs=None,
     hyps_mask=None,
 ):
@@ -1661,29 +1663,31 @@ def get_ky_and_hyp_pack(
 
     training_data = _global_training_data[name]
     # calculate elements
-    for m_index in range(size1):
-        x_1 = training_data[int(math.floor(m_index / 3)) + s1]
-        d_1 = ds[m_index % 3]
+    for m_index in range(e1 - s1):
+        x_1 = training_data[m_index + s1]
 
         if same:
-            lowbound = m_index
+            lowerbound = m_index
         else:
-            lowbound = 0
-        for n_index in range(lowbound, size2):
-            x_2 = training_data[int(math.floor(n_index / 3)) + s2]
-            d_2 = ds[n_index % 3]
+            lowerbound = 0
 
-            # calculate kernel and gradient
-            cov = kernel_grad(x_1, x_2, d_1, d_2, *args)
+        for n_index in range(lowerbound, e2 - s2):
+            x_2 = training_data[n_index + s2]
 
-            # store kernel value
-            k_mat[m_index, n_index] = cov[0]
+            cov = kernel.force_force_gradient(x_1, x_2)
+            k_mat[3 * m_index : 3 * m_index + 3, 3 * n_index : 3 * n_index + 3] = cov[0]
             grad = from_grad_to_mask(cov[1], hyps_mask)
 
-            hyp_mat[:, m_index, n_index] = grad
+            hyp_mat[
+                :, 3 * m_index : 3 * m_index + 3, 3 * n_index : 3 * n_index + 3
+            ] = grad
             if same:
-                k_mat[n_index, m_index] = cov[0]
-                hyp_mat[:, n_index, m_index] = grad
+                k_mat[
+                    3 * n_index : 3 * n_index + 3, 3 * m_index : 3 * m_index + 3
+                ] = cov[0].T
+                hyp_mat[
+                    :, 3 * n_index : 3 * n_index + 3, 3 * m_index : 3 * m_index + 3
+                ] = np.transpose(grad, (0, 2, 1))
 
     return hyp_mat, k_mat
 
@@ -1691,7 +1695,7 @@ def get_ky_and_hyp_pack(
 def get_ky_and_hyp(
     hyps: np.ndarray,
     name,
-    kernel_grad,
+    kernel,
     cutoffs=None,
     hyps_mask=None,
     n_cpus=1,
@@ -1722,7 +1726,7 @@ def get_ky_and_hyp(
         n_cpus = mp.cpu_count()
     if n_cpus == 1:
         hyp_mat0, k_mat = get_ky_and_hyp_pack(
-            name, 0, size, 0, size, True, hyps, kernel_grad, cutoffs, hyps_mask
+            name, 0, size, 0, size, True, hyps, kernel, cutoffs, hyps_mask
         )
     else:
 
@@ -1747,7 +1751,7 @@ def get_ky_and_hyp(
                             e2,
                             s1 == s2,
                             hyps,
-                            kernel_grad,
+                            kernel,
                             cutoffs,
                             hyps_mask,
                         ),
@@ -1822,7 +1826,7 @@ def get_like_from_mats(ky_mat, l_mat, alpha, name):
 def get_neg_like(
     hyps: np.ndarray,
     name: str,
-    force_kernel,
+    kernel,
     logger_name=None,
     cutoffs=None,
     hyps_mask=None,
@@ -1874,7 +1878,7 @@ def get_neg_like(
 
     alpha = np.matmul(ky_mat_inv, labels)
 
-    like = get_like_from_mats(ky_mat,l_mat,alpha,name)
+    like = get_like_from_mats(ky_mat, l_mat, alpha, name)
 
     logger.debug(f"get_like_from_mats {time.time()-time0}")
 
@@ -1883,10 +1887,11 @@ def get_neg_like(
 
     return -like
 
+
 def get_neg_like_grad(
     hyps: np.ndarray,
     name: str,
-    kernel_grad,
+    kernel,
     logger_name: str = None,
     cutoffs=None,
     hyps_mask=None,
@@ -1916,7 +1921,7 @@ def get_neg_like_grad(
     hyp_mat, ky_mat = get_ky_and_hyp(
         hyps,
         name,
-        kernel_grad,
+        kernel,
         cutoffs=cutoffs,
         hyps_mask=hyps_mask,
         n_cpus=n_cpus,
